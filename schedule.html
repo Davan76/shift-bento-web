@@ -1,4 +1,4 @@
-<title>輪班便當 v1.95</title>
+<title>輪班便當 v1.96</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap">
 <style>
@@ -406,7 +406,7 @@ function topHtml(){
   const chips=[]; chips.push(S.demo?'<span class="chip warn">範例資料・不會儲存</span>':'<span class="chip on">已連線資料庫</span>');
   chips.push(S.canEdit?'<span class="chip on">編輯者</span>':'<span class="chip">組員</span>');
   if(meName()) chips.push('<button class="chip" data-act="logout">我是 '+esc(meName())+'（換人）</button>');
-  return `<header class="top"><div class="brand"><h1>輪班便當</h1><span class="tag">網頁版 v1.95</span></div>
+  return `<header class="top"><div class="brand"><h1>輪班便當</h1><span class="tag">網頁版 v1.96</span></div>
   <div class="mnav"><button class="ib" data-act="prev" aria-label="上一個月" ${i<=0?'disabled':''}>‹</button>
   <strong>${mo?monthLabel(mo):'—'}<small>${mo?mo.y+'/'+p2(mo.m):''}</small></strong>
   <button class="ib" data-act="next" aria-label="下一個月" ${i<0||i>=list.length-1?'disabled':''}>›</button></div>
@@ -904,10 +904,10 @@ function parseSchedRows(rows){
     if(!dm||!SCHED_CODE.test(code)){ bad.push(p.join(',')); return; }
     const y=+dm[1], m=+dm[2], d=+dm[3], n=new Date(Date.UTC(y,m,0)).getUTCDate();
     if(m<1||m>12||d<1||d>n){ bad.push(p.join(',')); return; }
-    const mm=y+'-'+String(m).padStart(2,'0'), pid='p'+mc[1];
+    const mm=y+'-'+String(m).padStart(2,'0'), cp='p'+mc[1];
     const o=months[mm]||(months[mm]={n,rows:{},names:{}});
-    const r=o.rows[pid]||(o.rows[pid]=new Array(n).fill(null)); r[d-1]=code;
-    if(p[3]) o.names[pid]=p[3];
+    const r=o.rows[cp]||(o.rows[cp]=new Array(n).fill(null)); r[d-1]=code;
+    if(p[3]) o.names[cp]=p[3];
   });
   return {months,bad};
 }
@@ -919,15 +919,30 @@ function parseLeaveRows(rows){
     const dm=DATE_RE.exec(p[1]||''); if(!dm){ bad.push(p.join(',')); return; }
     const y=+dm[1], m=+dm[2], d=+dm[3], n=new Date(Date.UTC(y,m,0)).getUTCDate();
     if(m<1||m>12||d<1||d>n){ bad.push(p.join(',')); return; }
-    const mm=y+'-'+String(m).padStart(2,'0'), pid='p'+mc[1];
-    const o=out[mm]||(out[mm]={}); (o[pid]=o[pid]||[]).push(d);
-    if(p[2]) names[pid]=p[2];
+    const mm=y+'-'+String(m).padStart(2,'0'), cp='p'+mc[1];
+    const o=out[mm]||(out[mm]={}); (o[cp]=o[cp]||[]).push(d);
+    if(p[2]) (names[mm]=names[mm]||{})[cp]=p[2];
   });
-  for(const mm of Object.keys(out)) for(const pid of Object.keys(out[mm])) out[mm][pid]=[...new Set(out[mm][pid])].sort((a,b)=>a-b);
+  for(const mm of Object.keys(out)) for(const cp of Object.keys(out[mm])) out[mm][cp]=[...new Set(out[mm][cp])].sort((a,b)=>a-b);
   return {out,names,bad};
 }
 function textToRows(text){ if(text.charCodeAt(0)===0xFEFF) text=text.slice(1); return text.replace(/\r/g,'').split('\n').map(l=>l.split(/[,\t]/).map(x=>(x||'').trim())); }
 const sameArr=(a,b)=>JSON.stringify(a||[])===JSON.stringify(b||[]);
+// 依遮罩姓名把檔案裡的「員NN」對應到網頁名單的人：每個月 Excel 的人員順序可能不同，姓名才是依據；
+// 檔案沒有姓名時才退回用代號位置。姓名不在名單、網頁名單或檔案內重名，都不猜，直接列出來擋下。
+function makeNameMap(){
+  const byName={}, dup=new Set();
+  for(const p of S.cfg.people){ if(byName[p.name]) dup.add(p.name); byName[p.name]=p.id; }
+  return (cp,nm,used,probs,label)=>{
+    let pid=cp;
+    if(nm){
+      if(dup.has(nm)){ probs.push(label+'：網頁名單有兩位同名「'+nm+'」，無法依姓名對應'); return null; }
+      pid=byName[nm]; if(!pid){ probs.push(label+'「'+nm+'」不在網頁名單內（新進或離職？需要先更新名單）'); return null; }
+    } else if(!S.cfg.people.some(x=>x.id===pid)){ probs.push(label+' 不在網頁名單內'); return null; }
+    if(used[pid]){ probs.push('「'+(nm||label)+'」在檔案中出現兩次（員'+used[pid].slice(1)+'、員'+cp.slice(1)+'）'); return null; }
+    used[pid]=cp; return pid;
+  };
+}
 async function importSchedFile(f){ try{ await importSchedFile0(f); }catch(e){ console.error('importSched',e); toast('讀取檔案失敗：'+((e&&e.message)||e)); } }
 async function importSchedFile0(f){
   const buf=await f.arrayBuffer(), u8=new Uint8Array(buf); let schedRows, leaveRows=null;
@@ -938,37 +953,44 @@ async function importSchedFile0(f){
     let text; try{ text=new TextDecoder('utf-8',{fatal:true}).decode(buf); }catch(e){ text=new TextDecoder('big5').decode(buf); }
     schedRows=textToRows(text);
   }
-  const {months,bad}=parseSchedRows(schedRows);
-  const lv=leaveRows?parseLeaveRows(leaveRows):null;
-  const probs=[], summary=[]; let blockNames=0; const sample=[];
-  for(const mm of Object.keys(months).sort()){
-    const o=months[mm], pids=Object.keys(o.rows).sort(); let miss=0;
-    for(const pid of pids) miss+=o.rows[pid].filter(x=>!x).length;
+  const {months:raw,bad}=parseSchedRows(schedRows);
+  const lv=leaveRows?parseLeaveRows(leaveRows):null, nameOf=makeNameMap();
+  const probs=[], summary=[], remap=[], months={}, sMap={};
+  for(const mm of Object.keys(raw).sort()){
+    const o=raw[mm], used={}, rows={}, names={}, map={}; let miss=0;
+    for(const cp of Object.keys(o.rows).sort()){
+      const pid=nameOf(cp,o.names[cp],used,probs,mm+' 班表 員'+cp.slice(1)); if(!pid) continue;
+      map[cp]=pid; rows[pid]=o.rows[cp]; const cfgp=S.cfg.people.find(x=>x.id===pid); names[pid]=o.names[cp]||(cfgp?cfgp.name:'');
+      if(pid!==cp) remap.push('員'+cp.slice(1)+' '+names[pid]+' → 網頁員'+pid.slice(1));
+      miss+=rows[pid].filter(x=>!x).length;
+    }
+    sMap[mm]=map; months[mm]={n:o.n,rows,names};
     if(miss) probs.push(mm+' 班表有 '+miss+' 格缺資料（每人每天都要有班別）');
-    summary.push(mm+'：'+pids.length+' 人 × '+o.n+' 日 = '+(pids.length*o.n)+' 格');
-    const missing=S.cfg.people.map(x=>x.id).filter(id=>!o.rows[id]);
-    if(missing.length) probs.push(mm+' 班表缺少 '+missing.length+' 位：'+missing.slice(0,8).map(id=>'員'+id.slice(1)).join('、')+(missing.length>8?'…':'')+'（每位組員都要有整月班表）');
-    for(const pid of pids){ const cp=S.cfg.people.find(x=>x.id===pid);
-      if(!cp){ probs.push('員'+pid.slice(1)+' 不在網頁名單內（需要先更新 Cloudflare 的工號對照）'); continue; }
-      const nm=o.names[pid]; if(nm&&nm!==cp.name){ blockNames++; if(sample.length<5) sample.push('員'+pid.slice(1)+'：網頁「'+cp.name+'」≠ 檔案「'+nm+'」'); } }
+    const missing=S.cfg.people.map(x=>x.id).filter(id=>!rows[id]);
+    if(missing.length) probs.push(mm+' 班表缺少 '+missing.length+' 位：'+missing.slice(0,8).map(id=>{ const p=S.cfg.people.find(x=>x.id===id); return (p?p.name:'員'+id.slice(1)); }).join('、')+(missing.length>8?'…':'')+'（每位組員都要有整月班表）');
+    summary.push(mm+'：'+Object.keys(rows).length+' 人 × '+o.n+' 日 = '+(Object.keys(rows).length*o.n)+' 格');
   }
-  if(!Object.keys(months).length) probs.push('檔案裡沒有可用的班表資料');
-  if(blockNames) probs.push('有 '+blockNames+' 位的姓名與網頁名單不符，代號順序可能不一致：'+sample.join('；'));
+  if(!Object.keys(raw).length) probs.push('檔案裡沒有可用的班表資料');
   // 排休：以班表的月份為準（排休工作表是空的也代表「這個月沒有人排休」）
   const leave={}, leaveProbs=[], leaveInfo=[]; let leaveDiff=0;
   if(lv){
     const lms=new Set([...Object.keys(months),...Object.keys(lv.out)]);
     for(const mm of [...lms].sort()){
-      const days=lv.out[mm]||{}; leave[mm]=days; let cnt=0,bn=0; const ns=[];
-      for(const pid of Object.keys(days)){ cnt+=days[pid].length; const cp=S.cfg.people.find(x=>x.id===pid);
-        if(!cp){ leaveProbs.push(mm+' 排休的「員'+pid.slice(1)+'」不在網頁名單內'); continue; }
-        const nm=lv.names[pid]; if(nm&&nm!==cp.name){ bn++; if(ns.length<3) ns.push('員'+pid.slice(1)+'：網頁「'+cp.name+'」≠ 檔案「'+nm+'」'); } }
-      if(bn) leaveProbs.push(mm+' 排休有 '+bn+' 位姓名與網頁名單不符：'+ns.join('；'));
+      const src=lv.out[mm]||{}, ln=(lv.names[mm]||{}), used={}, days={}; let cnt=0;
+      for(const cp of Object.keys(src)){
+        let pid;
+        if(ln[cp]) pid=nameOf(cp,ln[cp],used,leaveProbs,mm+' 排休 員'+cp.slice(1));
+        else if(sMap[mm]&&sMap[mm][cp]) { pid=sMap[mm][cp]; used[pid]=cp; }
+        else pid=nameOf(cp,'',used,leaveProbs,mm+' 排休 員'+cp.slice(1));
+        if(!pid) continue; days[pid]=src[cp]; cnt+=src[cp].length;
+      }
+      leave[mm]=days;
       let web=0, d=0; for(const p of S.cfg.people){ const cur=((S.leave[p.id]||{}).dates||{})[mm]||[]; web+=cur.length; if(!sameArr(cur,days[p.id])) d++; }
       leaveDiff+=d; leaveInfo.push(mm+'：檔案 '+cnt+' 筆／'+Object.keys(days).length+' 人；網頁現在 '+web+' 筆；有 '+d+' 人不同');
     }
   }
   window.__pendingSched={months:probs.length?null:months,leave:(lv&&!leaveProbs.length)?leave:null,hasLeave:!!lv};
+  const remapBlock=remap.length?`<p class="note">檔案裡有 <b>${remap.length}</b> 位的代號和網頁不同，已<b>依遮罩姓名</b>對應到網頁上的同一個人（例：${remap.slice(0,4).map(esc).join('；')}${remap.length>4?'…':''}）。</p>`:'';
   const schedBlock=probs.length
     ?`<p class="note" style="color:#e5534b;font-weight:700">班表：${probs.map(esc).join('<br>')}<br>請先修正再匯入。</p>`
     :`<label class="note" style="display:block;margin:6px 0"><input type="checkbox" id="ck-sched" checked> <b>匯入班表</b>（整月取代）<br>${summary.map(esc).join('<br>')}</label>`;
@@ -977,7 +999,7 @@ async function importSchedFile0(f){
     :`<label class="note" style="display:block;margin:6px 0"><input type="checkbox" id="ck-leave" ${leaveDiff?'':'checked'}> <b>匯入排休</b>（<b>整月取代</b>網頁上全部組員的排休）<br>${leaveInfo.map(esc).join('<br>')}${leaveDiff?'<br><span style="color:#e5534b">網頁上的排休和檔案不同；勾選會把網頁上的改動蓋掉，請確認後再勾。</span>':''}</label>`;
   openModal(`<h2>匯入班表</h2>
   <p class="note">檔案：${esc(f.name)}${bad.length?'（另有 '+bad.length+' 行格式不對會略過）':''}</p>
-  ${schedBlock}${leaveBlock}
+  ${remapBlock}${schedBlock}${leaveBlock}
   <div class="row"><input class="field" id="admpw2" type="password" autocomplete="off" placeholder="管理密碼" style="width:220px"></div>
   <p class="note" id="admstat2" role="status" style="min-height:1.5em;font-weight:700"></p>
   <div class="acts"><button class="btn" data-act="close">取消</button><button class="btn pri" id="admbtn2" data-act="admsched">寫入後端</button></div>`);
@@ -1020,14 +1042,14 @@ async function admSched(){
 }
 // ---- 匯出排休 CSV（代號,日期；日期 yyyy-mm-dd；UTF-8 附 BOM）----
 function exportLeaveCsv(){
-  const rows=['代號,日期'];
+  const rows=['代號,日期,姓名']; const nameOf=pid=>{ const p=S.cfg.people.find(x=>x.id===pid); return p?p.name:''; };
   const codeOf=pid=>{ const i=S.cfg.people.findIndex(x=>x.id===pid); return i>=0?'員'+String(i+1).padStart(2,'0'):null; };
   const pids=Object.keys(S.leave).sort();
   for(const pid of pids){
     const code=codeOf(pid); if(!code) continue;
     const months=(S.leave[pid]&&S.leave[pid].dates)||{};
     for(const mm of Object.keys(months).sort()){
-      for(const d of [...months[mm]].sort((a,b)=>a-b)) rows.push(code+','+mm+'-'+String(d).padStart(2,'0'));
+      for(const d of [...months[mm]].sort((a,b)=>a-b)) rows.push(code+','+mm+'-'+String(d).padStart(2,'0')+','+nameOf(pid));
     }
   }
   const blob=new Blob(['\uFEFF'+rows.join('\r\n')+'\r\n'],{type:'text/csv;charset=utf-8'});
