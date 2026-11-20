@@ -1,4 +1,4 @@
-<title>輪班便當 v1.94</title>
+<title>輪班便當 v1.95</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap">
 <style>
@@ -134,6 +134,20 @@ thead th.lvh span{color:#1a1400!important;font-weight:700!important}
 /* 自己的那一列：姓名粗體並加外框，方便在全部組員中找到自己 */
 tr.me th.nm button{font-weight:800;text-decoration:underline}
 tr.me td.c{box-shadow:inset 0 1px 0 var(--fg),inset 0 -1px 0 var(--fg)}
+
+/* 休息天數比對：不一致用淡紅底、白字（#cc4a4a 與白字對比度 4.5，兼顧「淡」與可讀） */
+.rc .rcbase{margin:0 0 4px;font-size:13px}
+.rc .rcsum{margin:0 0 8px;font-size:13px;font-weight:700;display:inline-block;padding:2px 0}
+.rc .rcsum.ok{color:var(--ok)}
+.rc .rcsum.bad,.rc .rcbase .bad{background:#cc4a4a;color:#fff;padding:3px 10px;border-radius:6px;font-weight:700}
+.rc .wrap{max-height:none}
+.rct{border-collapse:collapse;font-size:13px;width:auto;min-width:360px}
+.rct th,.rct td{padding:3px 10px;text-align:center;border-bottom:1px solid var(--line);white-space:nowrap}
+.rct thead th{font-weight:700;color:var(--muted,inherit)}
+.rct tbody th{text-align:left;font-weight:500;position:static;background:none}
+.rct tr.bad th,.rct tr.bad td{background:#cc4a4a;color:#fff}
+.rct tr.bad td:last-child{font-weight:700}
+.rct tr.ok td:last-child{color:var(--ok)}
 
 </style>
 <div id="app"></div>
@@ -392,7 +406,7 @@ function topHtml(){
   const chips=[]; chips.push(S.demo?'<span class="chip warn">範例資料・不會儲存</span>':'<span class="chip on">已連線資料庫</span>');
   chips.push(S.canEdit?'<span class="chip on">編輯者</span>':'<span class="chip">組員</span>');
   if(meName()) chips.push('<button class="chip" data-act="logout">我是 '+esc(meName())+'（換人）</button>');
-  return `<header class="top"><div class="brand"><h1>輪班便當</h1><span class="tag">網頁版 v1.94</span></div>
+  return `<header class="top"><div class="brand"><h1>輪班便當</h1><span class="tag">網頁版 v1.95</span></div>
   <div class="mnav"><button class="ib" data-act="prev" aria-label="上一個月" ${i<=0?'disabled':''}>‹</button>
   <strong>${mo?monthLabel(mo):'—'}<small>${mo?mo.y+'/'+p2(mo.m):''}</small></strong>
   <button class="ib" data-act="next" aria-label="下一個月" ${i<0||i>=list.length-1?'disabled':''}>›</button></div>
@@ -419,7 +433,7 @@ function barHtml(){
   return b+`<div class="bar">${a}<span class="sp"></span></div>`;
 }
 function legendHtml(){
-  return `<div class="legend"><span>早 B02</span><span>中 B03</span><span>夜 B04</span><span>日 B01</span><span><i style="background:var(--t-rest)"></i>休（H01 週六／H03 週日／H05 國定）</span><span><i style="background:#fff;position:relative"><b style="position:absolute;right:0;top:0;border-style:solid;border-width:0 6px 6px 0;border-color:transparent #e0701b transparent transparent"></b></i>與基礎班表不同（調整）</span><span><i style="outline:2px solid var(--danger);outline-offset:-2px"></i>違規</span><span><i style="background:#f3e39a"></i>調班別</span><span><i style="background:var(--leave)"></i>排休</span></div>`;
+  return `<div class="legend"><span>早 B02</span><span>中 B03</span><span>夜 B04</span><span>日 B01</span><span><i style="background:var(--t-rest)"></i>休</span><span><i style="background:#fff;position:relative"><b style="position:absolute;right:0;top:0;border-style:solid;border-width:0 6px 6px 0;border-color:transparent #e0701b transparent transparent"></b></i>與基礎班表不同（調整）</span><span><i style="outline:2px solid var(--danger);outline-offset:-2px"></i>違規</span><span><i style="background:#f3e39a"></i>調班別</span><span><i style="background:var(--leave)"></i>排休</span></div>`;
 }
 function bodyHtml(){
   if(typeof schedLoading!=='undefined'&&schedLoading) return '<div class="banner">班表載入中…</div>';
@@ -446,7 +460,7 @@ function bodyHtml(){
       const s=r[d-1]||'B02W01', b=pb(s), a=pa(s), rest=a[0]==='H';
       const cls=rest?'t-rest':b==='B01'?'t-day':b==='B02'?'t-early':b==='B03'?'t-mid':'t-night';
       const flags=(bs[d-1]&&bs[d-1]!==s?' adj':'')+(bad.has(p.id+':'+d)?' bad':'')+(leaveSet.has(p.id+':'+d)?' lv':'')+(S.pick&&S.pick.p===p.id&&S.pick.d===d?' pick':'');
-      t+=`<td class="c ${cls}${flags}" data-p="${esc(p.id)}" data-d="${d}" title="${esc(p.name)} ${d} 日 ${s}">${rest?'休':BLABEL[b]||b}${rest?`<small>${a.slice(1)}</small>`:''}</td>`;
+      t+=`<td class="c ${cls}${flags}" data-p="${esc(p.id)}" data-d="${d}" title="${esc(p.name)} ${d} 日 ${rest?'休':(BLABEL[b]||b)}">${rest?'休':BLABEL[b]||b}</td>`;
     }
     t+='</tr>';
     rowsHtml.push(t);
@@ -456,7 +470,28 @@ function bodyHtml(){
   const issHtml=iss.length?`<ul>${iss.map(x=>`<li><button data-act="goto" data-p="${esc(x.pid)}" data-d="${x.day}">${esc(x.name)}：${esc(x.msg)}</button></li>`).join('')}</ul>`:'<p class="ok">全部通過：連續上班不超過 6 天、相鄰上班日休息大於 12 小時。</p>';
   const adjN=mo.people.reduce((s,p)=>s+(mo.rows[p.id]||[]).filter((x,i)=>(mo.base[p.id]||[])[i]!==x).length,0);
   return legendHtml()+`<div class="wrap ${S.canEdit?'ed':''}"><table>${h}</table></div>
-  <section class="issues"><h2>檢查結果</h2>${issHtml}</section>`;
+  <section class="issues"><h2>檢查結果</h2>${issHtml}</section>
+  ${(typeof S.adm!=='undefined'&&S.adm)?restCompareHtml(mo):''}`;   // 休息天數比對只給通過「管理」驗證的人看
+}
+// 休息天數比對：以日班 B01 的本月休息天數為基準，逐位列出其他全部人員（日班 B02、A~D 班、表尾）的休息天數。
+//   只有通過「管理」驗證的人看得到。
+//   只比對「休息總天數」是否相同（H05／H03／H01 的分配由後台處理，這裡不顯示、不比對）。
+function restCompareHtml(mo){
+  const base=mo.people.filter(p=>p.cat==='日1');
+  if(!base.length) return '<section class="issues rc"><h2>休息天數比對</h2><p class="note">本月沒有日班 B01 人員，無法比對。</p></section>';
+  const tot=r=>{ const s=stats(r||[]); return s.h5+s.h3+s.h1; };
+  const b0=tot(mo.rows[base[0].id]), baseDiff=base.filter(p=>tot(mo.rows[p.id])!==b0);
+  const rot=mo.people.filter(p=>p.cat!=='日1'); let nBad=0;   // 除日班 B01（基準）以外的全部人員
+  const rows=rot.map(p=>{
+    const t=tot(mo.rows[p.id]), d=t-b0, ok=d===0; if(!ok) nBad++;
+    return `<tr class="${ok?'ok':'bad'}"><th>${esc(p.name)}</th><td>${esc(GNAME[p.cat].replace(/（.*）/,''))}${p.tail?'（表尾）':''}</td><td>${t}</td><td>${ok?'✓ 一致':'✗ '+(d>0?'多 '+d:'少 '+(-d))+' 天'}</td></tr>`;
+  }).join('');
+  const sum=rot.length?`比對 ${rot.length} 人（日班 B01 除外）：休息天數與基準一致 ${rot.length-nBad} 人、不一致 ${nBad} 人`:'本月沒有需要比對的人員';
+  return `<section class="issues rc"><h2>休息天數比對（以日班 B01 為基準）</h2>
+  <p class="rcbase">日班 B01：本月休 <b>${b0}</b> 天${baseDiff.length?'<span class="bad">；注意：日班 B01 之間的休息天數本身不一致（'+baseDiff.length+' 人）</span>':''}</p>
+  <p class="rcsum ${nBad?'bad':'ok'}">${esc(sum)}</p>
+  ${rot.length?`<div class="wrap"><table class="rct"><thead><tr><th>姓名</th><th>組別</th><th>休</th><th>與基準</th></tr></thead><tbody>${rows}</tbody></table></div>`:''}
+  </section>`;
 }
 
 // ---------- 浮動視窗 ----------
@@ -482,9 +517,9 @@ function personDlg(pid){
   const r=mo.rows[pid]||[], n=dim(mo.y,mo.m), st=stats(r), w0=wday(mo.y,mo.m,1), iss=monthIssues(mo).filter(x=>x.pid===pid);
   let cal=['日','一','二','三','四','五','六'].map(x=>`<div class="h">${x}</div>`).join('')+'<div style="background:none"></div>'.repeat(w0);
   for(let d=1;d<=n;d++){ const s=r[d-1],b=pb(s),a=pa(s),rest=a[0]==='H'; const bg=rest?'t-rest':b==='B01'?'t-day':b==='B02'?'t-early':b==='B03'?'t-mid':'t-night';
-    cal+=`<div style="background:${rest?'var(--t-rest)':'transparent'}"><b>${d}</b>${rest?'休':BLABEL[b]}${rest?`<b>${a}</b>`:`<b>${b}</b>`}</div>`; }
+    cal+=`<div style="background:${rest?'var(--t-rest)':'transparent'}"><b>${d}</b>${rest?'休':BLABEL[b]}${rest?'':`<b>${b}</b>`}</div>`; }
   const gl=p.tail?'表尾（'+GNAME[p.cat]+'）':GNAME[p.cat];
-  openModal(`<h2>${esc(p.name)}・${monthLabel(mo)}</h2><div class="note">${esc(gl)}　休息日：H05 ${st.h5}、H03 ${st.h3}、H01 ${st.h1}</div><div class="cal">${cal}</div>
+  openModal(`<h2>${esc(p.name)}・${monthLabel(mo)}</h2><div class="note">${esc(gl)}　休息 ${st.h5+st.h3+st.h1} 天</div><div class="cal">${cal}</div>
   ${iss.length?`<h4>這個人的違規</h4><div class="list bad">${iss.map(x=>`<div>${esc(x.msg)}</div>`).join('')}</div>`:''}
   <div class="acts"><button class="btn" data-act="close">關閉</button></div>`);
 }
