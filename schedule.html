@@ -1,4 +1,4 @@
-<title>輪班便當 v1.98</title>
+<title>輪班便當 v1.99</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap">
 <style>
@@ -140,6 +140,13 @@ th.rd,td.rd{min-width:46px;text-align:center;white-space:nowrap;border-left:2px 
 th.rd span{display:block;font-size:10px;font-weight:400;opacity:.8}
 td.rd{font-weight:700}
 td.rd.rdbad{background:#cc4a4a;color:#fff}
+
+/* 排休紀錄 */
+.lgt{border-collapse:collapse;font-size:13px;width:100%}
+.lgt th,.lgt td{padding:4px 8px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+.lgt thead th{font-weight:700;position:sticky;top:0;background:var(--surface)}
+.lgt td small{display:block;opacity:.7;font-size:11px}
+.lgt tr.lga td{opacity:.85}
 
 </style>
 <div id="app"></div>
@@ -398,7 +405,7 @@ function topHtml(){
   const chips=[]; chips.push(S.demo?'<span class="chip warn">範例資料・不會儲存</span>':'<span class="chip on">已連線資料庫</span>');
   chips.push(S.canEdit?'<span class="chip on">編輯者</span>':'<span class="chip">組員</span>');
   if(meName()) chips.push('<button class="chip" data-act="logout">我是 '+esc(meName())+'（換人）</button>');
-  return `<header class="top"><div class="brand"><h1>輪班便當</h1><span class="tag">網頁版 v1.98</span></div>
+  return `<header class="top"><div class="brand"><h1>輪班便當</h1><span class="tag">網頁版 v1.99</span></div>
   <div class="mnav"><button class="ib" data-act="prev" aria-label="上一個月" ${i<=0?'disabled':''}>‹</button>
   <strong>${mo?monthLabel(mo):'—'}<small>${mo?mo.y+'/'+p2(mo.m):''}</small></strong>
   <button class="ib" data-act="next" aria-label="下一個月" ${i<0||i>=list.length-1?'disabled':''}>›</button></div>
@@ -415,7 +422,7 @@ function barHtml(){
   // 匯出／匯入只對通過管理密碼驗證的人顯示；其他人只看到「管理」入口
   if(S.dbOk&&typeof exportLeaveCsv==='function'){
     if(!S.adm) a+=`<button class="btn" data-act="admlogin">管理</button>`;
-    else { if(mo) a+=`<button class="btn" data-act="exportcsv">匯出排休 CSV</button><button class="btn" data-act="importcsv">匯入排休 CSV</button>`; a+=`<button class="btn" data-act="importsched">匯入班表</button>`; }   // 沒有班表時也要能匯入第一份班表
+    else { if(mo) a+=`<button class="btn" data-act="exportcsv">匯出排休 CSV</button><button class="btn" data-act="importcsv">匯入排休 CSV</button>`; a+=`<button class="btn" data-act="importsched">匯入班表</button><button class="btn" data-act="admlog">排休紀錄</button>`; }   // 沒有班表時也要能匯入第一份班表
   }
   if(S.canEdit&&mo){
     a+=`<button class="btn pri" data-act="gen">產生下月班表</button><button class="btn" data-act="swap">調換</button>`;
@@ -663,6 +670,10 @@ document.addEventListener('click',e=>{
   if(act==='exportcsv'){ if(typeof exportLeaveCsv==='function') exportLeaveCsv(); return; }
   if(act==='importcsv'){ if(typeof importLeaveCsvPick==='function') importLeaveCsvPick(); return; }
   if(act==='admsched'){ if(typeof admSched==='function') admSched(); return; }
+  if(act==='admlog'){ if(typeof admLog==='function') admLog(); return; }
+  if(act==='admlogfetch'){ if(typeof admLogFetch==='function') admLogFetch(); return; }
+  if(act==='admlogmark'){ if(typeof admLogMark==='function') admLogMark(); return; }
+  if(act==='admlogcsv'){ if(typeof admLogCsv==='function') admLogCsv(); return; }
   if(act==='importsched'){ if(typeof importSchedPick==='function') importSchedPick(); return; }
   if(act==='admlogin'){ if(typeof admLogin==='function') admLogin(); return; }
   if(act==='admverify'){ if(typeof admVerify==='function') admVerify(); return; }
@@ -1014,6 +1025,87 @@ async function admSched(){
   <p class="note">已寫入後端：${done.map(esc).join('、')}</p>
   ${synced?'':'<p class="note" style="color:#e5534b;font-weight:700">寫入成功，但重新讀取失敗；請重新整理頁面確認。</p>'}
   <div class="acts"><button class="btn pri" data-act="close">確定</button></div>`);
+}
+// ---- 排休紀錄（只有通過「管理」驗證的人看得到；資料在後端，保留 3 個月）----
+const LOG_KIND={leave:'組員修改排休','leave-import':'管理者匯入排休','sched-import':'管理者匯入班表','excel-synced':'標記：已匯回 Excel'};
+const logPersonName=pid=>{ const p=S.cfg.people.find(x=>x.id===pid); return p?p.name:('員'+String(pid).slice(1)); };
+const logTime=ts=>new Date(ts).toLocaleString('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});
+const logDays=(mm,a)=>a.map(d=>(+mm.slice(5,7))+'/'+d).join('、');
+// 把一筆紀錄攤成「一人一列」：leave-import 會有多個人
+function logRows(e){
+  if(e.kind==='leave') return [{ts:e.ts,kind:e.kind,pid:e.pid,month:e.month,added:e.added||[],removed:e.removed||[],after:e.after||[]}];
+  if(e.kind==='leave-import') return (e.changes||[]).map(c=>({ts:e.ts,kind:e.kind,pid:c.pid,month:e.month,added:c.added||[],removed:c.removed||[],after:null}));
+  return [{ts:e.ts,kind:e.kind,pid:null,month:e.month||'',added:[],removed:[],after:null,people:e.people,days:e.days}];
+}
+function logChangeText(r){
+  if(r.kind==='sched-import') return r.people+' 人 × '+r.days+' 日';
+  if(r.kind==='excel-synced') return '';
+  const p=[]; if(r.added.length) p.push('新增 '+logDays(r.month,r.added)); if(r.removed.length) p.push('取消 '+logDays(r.month,r.removed)); return p.join('　');
+}
+function admLog(){
+  window.__logData=null;
+  openModal(`<h2>排休紀錄</h2>
+  <p class="note">誰、何時、改了什麼（只記有實際變動的；不記 IP；保留 3 個月）。紀錄只能證明「有人用某人的工號改了」，不能證明是本人。</p>
+  <div class="row"><input class="field" id="logpw" type="password" autocomplete="off" placeholder="管理密碼" style="width:200px"> <button class="btn pri" data-act="admlogfetch">查詢</button></div>
+  <p class="note" id="logstat" role="status" style="min-height:1.4em;font-weight:700"></p>
+  <div id="logout"></div>
+  <div class="acts"><button class="btn" data-act="close">關閉</button></div>`);
+  setTimeout(()=>{ const e=$('#logpw'); if(e) e.focus(); },50);
+}
+async function admLogFetch(){
+  const stat=$('#logstat'), pw=(($('#logpw')||{}).value)||'';
+  const say=(t,bad)=>{ if(stat){ stat.textContent=t; stat.style.color=bad?'#e5534b':''; } };
+  if(!pw){ say('請先輸入管理密碼',true); return; }
+  say('讀取中…');
+  let r,j={};
+  try{ r=await fetch(SCHED_API+'/api/admin/log',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pw})}); j=await r.json().catch(()=>({})); }catch(e){ say('連不到伺服器，請稍後再試',true); return; }
+  if(r.status===404){ say('後端還不支援紀錄，請先更新 Cloudflare Worker',true); return; }
+  if(!r.ok){ say((j.error||'讀取失敗')+'（'+r.status+'）',true); return; }
+  window.__logData=j; say(''); renderLog();
+}
+function renderLog(){
+  const d=window.__logData, out=$('#logout'); if(!d||!out) return;
+  const keepMonth=($('#lgm')||{}).value||'', keepP=($('#lgp')||{}).value||'', keepOnly=!!(($('#lgo')||{}).checked);
+  const rows=[]; for(const e of d.entries) rows.push(...logRows(e));
+  const months=[...new Set(rows.map(r=>r.month).filter(Boolean))].sort().reverse(), pids=[...new Set(rows.map(r=>r.pid).filter(Boolean))].sort();
+  const view=rows.filter(r=>(!keepMonth||r.month===keepMonth)&&(!keepP||r.pid===keepP)&&(!keepOnly||r.kind==='leave'));
+  const since=d.syncedAt||0, mem=rows.filter(r=>r.kind==='leave'&&r.ts>since), memPeople=new Set(mem.map(r=>r.pid)).size;
+  const sum=d.syncedAt
+    ?`自 <b>${esc(logTime(d.syncedAt))}</b> 標記「已匯回 Excel」之後：組員改了 <b>${mem.length}</b> 筆（${memPeople} 人）`
+    :`還沒有標記過「已匯回 Excel」；目前紀錄內組員共改了 <b>${mem.length}</b> 筆（${memPeople} 人）`;
+  out.innerHTML=`<p class="note">${sum} <button class="btn" data-act="admlogmark">標記為已匯回 Excel</button></p>
+  <div class="row" style="gap:8px;flex-wrap:wrap;margin:6px 0">
+    <select class="field" id="lgm"><option value="">全部月份</option>${months.map(m=>`<option value="${esc(m)}" ${m===keepMonth?'selected':''}>${esc(m)}</option>`).join('')}</select>
+    <select class="field" id="lgp"><option value="">全部人員</option>${pids.map(p=>`<option value="${esc(p)}" ${p===keepP?'selected':''}>${esc(logPersonName(p))}</option>`).join('')}</select>
+    <label class="note"><input type="checkbox" id="lgo" ${keepOnly?'checked':''}> 只看組員修改</label>
+    <button class="btn" data-act="admlogcsv">匯出 CSV</button>
+  </div>
+  <div class="wrap" style="max-height:340px;overflow:auto"><table class="lgt"><thead><tr><th>時間</th><th>誰／來源</th><th>月份</th><th>變動</th></tr></thead><tbody>${
+    view.length?view.map(r=>`<tr class="${r.kind==='leave'?'lgm':'lga'}"><td>${esc(logTime(r.ts))}</td><td>${r.pid?esc(logPersonName(r.pid))+'<small>'+(r.kind==='leave'?'組員':'管理者匯入')+'</small>':esc(LOG_KIND[r.kind]||r.kind)}</td><td>${esc(r.month)}</td><td>${esc(logChangeText(r))}</td></tr>`).join(''):'<tr><td colspan="4" style="text-align:center">沒有符合的紀錄</td></tr>'}</tbody></table></div>
+  <p class="note">共 ${view.length} 列${d.truncated?'（紀錄很多，只顯示最新 300 筆）':''}。</p>`;
+  for(const id of ['lgm','lgp','lgo']){ const el=$('#'+id); if(el) el.onchange=renderLog; }
+}
+async function admLogMark(){
+  const stat=$('#logstat'), pw=(($('#logpw')||{}).value)||'';
+  const say=(t,bad)=>{ if(stat){ stat.textContent=t; stat.style.color=bad?'#e5534b':''; } };
+  if(!pw){ say('請先輸入管理密碼',true); return; }
+  let r,j={};
+  try{ r=await fetch(SCHED_API+'/api/admin/mark',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({pw})}); j=await r.json().catch(()=>({})); }catch(e){ say('連不到伺服器，請稍後再試',true); return; }
+  if(r.status===404){ say('後端還不支援，請先更新 Cloudflare Worker',true); return; }
+  if(!r.ok){ say((j.error||'失敗')+'（'+r.status+'）',true); return; }
+  await admLogFetch(); say('已標記：之後的修改會從現在重新計算');
+}
+function admLogCsv(){
+  const d=window.__logData; if(!d) return;
+  const q=v=>{ v=String(v==null?'':v); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; };
+  const lines=['時間,來源,代號,姓名,月份,新增,取消,之後的排休'];
+  for(const e of d.entries) for(const r of logRows(e)){
+    lines.push([logTime(r.ts),LOG_KIND[r.kind]||r.kind,r.pid?'員'+r.pid.slice(1):'',r.pid?logPersonName(r.pid):'',r.month,
+      r.kind==='sched-import'?(r.people+' 人×'+r.days+' 日'):logDays(r.month||'0000-00',r.added),r.kind==='sched-import'?'':logDays(r.month||'0000-00',r.removed),r.after?logDays(r.month||'0000-00',r.after):''].map(q).join(','));
+  }
+  const blob=new Blob(['﻿'+lines.join('\r\n')+'\r\n'],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob), a=document.createElement('a'); a.href=url; a.download='排休紀錄_'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 // ---- 匯出排休 CSV（代號,日期；日期 yyyy-mm-dd；UTF-8 附 BOM）----
 function exportLeaveCsv(){
