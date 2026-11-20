@@ -1,4 +1,4 @@
-<title>輪班便當 v1.93</title>
+<title>輪班便當 v1.94</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap">
 <style>
@@ -392,7 +392,7 @@ function topHtml(){
   const chips=[]; chips.push(S.demo?'<span class="chip warn">範例資料・不會儲存</span>':'<span class="chip on">已連線資料庫</span>');
   chips.push(S.canEdit?'<span class="chip on">編輯者</span>':'<span class="chip">組員</span>');
   if(meName()) chips.push('<button class="chip" data-act="logout">我是 '+esc(meName())+'（換人）</button>');
-  return `<header class="top"><div class="brand"><h1>輪班便當</h1><span class="tag">網頁版 v1.93</span></div>
+  return `<header class="top"><div class="brand"><h1>輪班便當</h1><span class="tag">網頁版 v1.94</span></div>
   <div class="mnav"><button class="ib" data-act="prev" aria-label="上一個月" ${i<=0?'disabled':''}>‹</button>
   <strong>${mo?monthLabel(mo):'—'}<small>${mo?mo.y+'/'+p2(mo.m):''}</small></strong>
   <button class="ib" data-act="next" aria-label="下一個月" ${i<0||i>=list.length-1?'disabled':''}>›</button></div>
@@ -409,7 +409,7 @@ function barHtml(){
   // 匯出／匯入只對通過管理密碼驗證的人顯示；其他人只看到「管理」入口
   if(S.dbOk&&typeof exportLeaveCsv==='function'){
     if(!S.adm) a+=`<button class="btn" data-act="admlogin">管理</button>`;
-    else { if(mo) a+=`<button class="btn" data-act="exportcsv">匯出排休 CSV</button><button class="btn" data-act="importcsv">匯入排休 CSV</button>`; a+=`<button class="btn" data-act="importsched">匯入班表 CSV</button>`; }   // 沒有班表時也要能匯入第一份班表
+    else { if(mo) a+=`<button class="btn" data-act="exportcsv">匯出排休 CSV</button><button class="btn" data-act="importcsv">匯入排休 CSV</button>`; a+=`<button class="btn" data-act="importsched">匯入班表</button>`; }   // 沒有班表時也要能匯入第一份班表
   }
   if(S.canEdit&&mo){
     a+=`<button class="btn pri" data-act="gen">產生下月班表</button><button class="btn" data-act="swap">調換</button>`;
@@ -808,78 +808,177 @@ async function admVerify(){
   if(r.status===400) fail('後端還不支援驗證，請先更新 Cloudflare Worker（含管理驗證的新版 worker.js）');
   else fail((j.error||'驗證失敗')+'（'+r.status+'）');
 }
-// ---- 匯入班表 CSV（Excel「匯出班表」產生；欄位：代號,日期,班別,姓名；管理密碼由後端驗證）----
+// ---- 匯入班表（Excel「匯出班表」產生的 .xlsx：工作表「班表」＋「排休」；也接受只有班表的 .csv）----
 const SCHED_CODE=/^B0[1-4](W01|H01|H03|H05)$/;
 function importSchedPick(){
-  const inp=document.createElement('input'); inp.type='file'; inp.accept='.csv,text/csv'; inp.style.display='none';
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='.xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'; inp.style.display='none';
   inp.onchange=()=>{ const f=inp.files&&inp.files[0]; inp.remove(); if(f) importSchedFile(f); };
   document.body.appendChild(inp);   // 放進頁面再點擊：部分手機瀏覽器對未加入頁面的檔案欄位不會觸發 change
   inp.click();
 }
-async function importSchedFile(f){ try{ await importSchedFile0(f); }catch(e){ console.error('importSched',e); toast('讀取班表檔失敗：'+((e&&e.message)||e)); } }
-async function importSchedFile0(f){
-  const buf=await f.arrayBuffer(); let text;
-  try{ text=new TextDecoder('utf-8',{fatal:true}).decode(buf); }catch(e){ text=new TextDecoder('big5').decode(buf); }
-  if(text.charCodeAt(0)===0xFEFF) text=text.slice(1);
-  const lines=text.replace(/\r/g,'').split('\n'), months={}, bad=[];
-  for(let i=0;i<lines.length;i++){
-    const L=lines[i].trim(); if(!L) continue;
-    const p=L.split(/[,\t]/).map(s=>(s||'').trim());
-    const mc=/^員(\d{2})$/.exec(p[0]||'');
-    if(!mc){ if(i>0) bad.push(L); continue; }                       // 第一行視為標題
-    const dm=/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/.exec(p[1]||''), code=(p[2]||'').toUpperCase();
-    if(!dm||!SCHED_CODE.test(code)){ bad.push(L); continue; }
+// --- 讀 xlsx：xlsx 是 zip，裡面是 xml；不用外部套件 ---
+async function inflateRaw(u8){ const st=new Blob([u8]).stream().pipeThrough(new DecompressionStream('deflate-raw')); return new Uint8Array(await new Response(st).arrayBuffer()); }
+async function unzip(buf){
+  const u=new Uint8Array(buf), dv=new DataView(buf), dec=new TextDecoder(); let e=-1;
+  for(let i=u.length-22;i>=Math.max(0,u.length-65557);i--){ if(dv.getUint32(i,true)===0x06054b50){ e=i; break; } }
+  if(e<0) throw new Error('不是有效的 xlsx（找不到 zip 目錄）');
+  const cnt=dv.getUint16(e+10,true); let off=dv.getUint32(e+16,true); const files={};
+  for(let k=0;k<cnt;k++){
+    if(dv.getUint32(off,true)!==0x02014b50) throw new Error('xlsx 目錄損毀');
+    const method=dv.getUint16(off+10,true), csize=dv.getUint32(off+20,true), nlen=dv.getUint16(off+28,true), xlen=dv.getUint16(off+30,true), clen=dv.getUint16(off+32,true), lo=dv.getUint32(off+42,true);
+    const name=dec.decode(u.subarray(off+46,off+46+nlen));
+    const ds=lo+30+dv.getUint16(lo+26,true)+dv.getUint16(lo+28,true);
+    files[name]={method,raw:u.subarray(ds,ds+csize)}; off+=46+nlen+xlen+clen;
+  }
+  return {async text(n){ const f=files[n]; if(!f) return null; return dec.decode(f.method===0?f.raw:await inflateRaw(f.raw)); }};
+}
+function colIdx(ref){ const m=/^([A-Z]+)/.exec(ref||'A'); let n=0; for(const ch of m[1]) n=n*26+(ch.charCodeAt(0)-64); return n-1; }
+async function readXlsx(buf){
+  if(typeof DecompressionStream==='undefined') throw new Error('這個瀏覽器不支援讀取 xlsx，請改用較新的 Chrome、Edge 或 Safari');
+  const z=await unzip(buf), P=t=>new DOMParser().parseFromString(t,'application/xml');
+  const wbx=P(await z.text('xl/workbook.xml')), rels=P(await z.text('xl/_rels/workbook.xml.rels')), relMap={};
+  for(const r of rels.getElementsByTagName('Relationship')) relMap[r.getAttribute('Id')]=r.getAttribute('Target');
+  const ss=[], sst=await z.text('xl/sharedStrings.xml');
+  if(sst) for(const si of P(sst).getElementsByTagName('si')) ss.push([...si.getElementsByTagName('t')].map(t=>t.textContent).join(''));
+  const sheets={};
+  for(const sh of wbx.getElementsByTagName('sheet')){
+    let tg=relMap[sh.getAttribute('r:id')]||''; tg=tg.replace(/^\//,''); const path=tg.startsWith('xl/')?tg:'xl/'+tg;
+    const xml=await z.text(path); if(!xml) continue;
+    const rows=[];
+    for(const row of P(xml).getElementsByTagName('row')){
+      const arr=[];
+      for(const c of row.getElementsByTagName('c')){
+        const t=c.getAttribute('t'), ve=c.getElementsByTagName('v')[0]; let v='';
+        if(t==='s') v=ve?(ss[+ve.textContent]||''):''; else if(t==='inlineStr') v=[...c.getElementsByTagName('t')].map(x=>x.textContent).join(''); else v=ve?ve.textContent:'';
+        arr[colIdx(c.getAttribute('r'))]=String(v).trim();
+      }
+      rows.push(Array.from(arr,x=>x||''));
+    }
+    sheets[sh.getAttribute('name')]=rows;
+  }
+  return sheets;
+}
+// --- 解析列：班表 [代號,日期,班別,姓名]；排休 [代號,日期,姓名] ---
+const DATE_RE=/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/;
+function parseSchedRows(rows){
+  const months={}, bad=[];
+  rows.forEach((p,i)=>{
+    if(!p.some(x=>x)) return;
+    const mc=/^員(\d{2})$/.exec(p[0]||''); if(!mc){ if(i>0) bad.push(p.join(',')); return; }
+    const dm=DATE_RE.exec(p[1]||''), code=(p[2]||'').toUpperCase();
+    if(!dm||!SCHED_CODE.test(code)){ bad.push(p.join(',')); return; }
     const y=+dm[1], m=+dm[2], d=+dm[3], n=new Date(Date.UTC(y,m,0)).getUTCDate();
-    if(m<1||m>12||d<1||d>n){ bad.push(L); continue; }
+    if(m<1||m>12||d<1||d>n){ bad.push(p.join(',')); return; }
     const mm=y+'-'+String(m).padStart(2,'0'), pid='p'+mc[1];
     const o=months[mm]||(months[mm]={n,rows:{},names:{}});
     const r=o.rows[pid]||(o.rows[pid]=new Array(n).fill(null)); r[d-1]=code;
     if(p[3]) o.names[pid]=p[3];
+  });
+  return {months,bad};
+}
+function parseLeaveRows(rows){
+  const out={}, names={}, bad=[];
+  rows.forEach((p,i)=>{
+    if(!p.some(x=>x)) return;
+    const mc=/^員(\d{2})$/.exec(p[0]||''); if(!mc){ if(i>0) bad.push(p.join(',')); return; }
+    const dm=DATE_RE.exec(p[1]||''); if(!dm){ bad.push(p.join(',')); return; }
+    const y=+dm[1], m=+dm[2], d=+dm[3], n=new Date(Date.UTC(y,m,0)).getUTCDate();
+    if(m<1||m>12||d<1||d>n){ bad.push(p.join(',')); return; }
+    const mm=y+'-'+String(m).padStart(2,'0'), pid='p'+mc[1];
+    const o=out[mm]||(out[mm]={}); (o[pid]=o[pid]||[]).push(d);
+    if(p[2]) names[pid]=p[2];
+  });
+  for(const mm of Object.keys(out)) for(const pid of Object.keys(out[mm])) out[mm][pid]=[...new Set(out[mm][pid])].sort((a,b)=>a-b);
+  return {out,names,bad};
+}
+function textToRows(text){ if(text.charCodeAt(0)===0xFEFF) text=text.slice(1); return text.replace(/\r/g,'').split('\n').map(l=>l.split(/[,\t]/).map(x=>(x||'').trim())); }
+const sameArr=(a,b)=>JSON.stringify(a||[])===JSON.stringify(b||[]);
+async function importSchedFile(f){ try{ await importSchedFile0(f); }catch(e){ console.error('importSched',e); toast('讀取檔案失敗：'+((e&&e.message)||e)); } }
+async function importSchedFile0(f){
+  const buf=await f.arrayBuffer(), u8=new Uint8Array(buf); let schedRows, leaveRows=null;
+  if(u8[0]===0x50&&u8[1]===0x4B){
+    const sh=await readXlsx(buf), names=Object.keys(sh);
+    schedRows=sh['班表']||sh[names[0]]||[]; leaveRows=sh['排休']||null;
+  } else {
+    let text; try{ text=new TextDecoder('utf-8',{fatal:true}).decode(buf); }catch(e){ text=new TextDecoder('big5').decode(buf); }
+    schedRows=textToRows(text);
   }
+  const {months,bad}=parseSchedRows(schedRows);
+  const lv=leaveRows?parseLeaveRows(leaveRows):null;
   const probs=[], summary=[]; let blockNames=0; const sample=[];
   for(const mm of Object.keys(months).sort()){
     const o=months[mm], pids=Object.keys(o.rows).sort(); let miss=0;
     for(const pid of pids) miss+=o.rows[pid].filter(x=>!x).length;
-    if(miss) probs.push(mm+' 有 '+miss+' 格缺資料（每人每天都要有班別）');
+    if(miss) probs.push(mm+' 班表有 '+miss+' 格缺資料（每人每天都要有班別）');
     summary.push(mm+'：'+pids.length+' 人 × '+o.n+' 日 = '+(pids.length*o.n)+' 格');
     const missing=S.cfg.people.map(x=>x.id).filter(id=>!o.rows[id]);
-    if(missing.length) probs.push(mm+' 缺少 '+missing.length+' 位：'+missing.slice(0,8).map(id=>'員'+id.slice(1)).join('、')+(missing.length>8?'…':'')+'（每位組員都要有整月班表）');
+    if(missing.length) probs.push(mm+' 班表缺少 '+missing.length+' 位：'+missing.slice(0,8).map(id=>'員'+id.slice(1)).join('、')+(missing.length>8?'…':'')+'（每位組員都要有整月班表）');
     for(const pid of pids){ const cp=S.cfg.people.find(x=>x.id===pid);
       if(!cp){ probs.push('員'+pid.slice(1)+' 不在網頁名單內（需要先更新 Cloudflare 的工號對照）'); continue; }
       const nm=o.names[pid]; if(nm&&nm!==cp.name){ blockNames++; if(sample.length<5) sample.push('員'+pid.slice(1)+'：網頁「'+cp.name+'」≠ 檔案「'+nm+'」'); } }
   }
   if(!Object.keys(months).length) probs.push('檔案裡沒有可用的班表資料');
   if(blockNames) probs.push('有 '+blockNames+' 位的姓名與網頁名單不符，代號順序可能不一致：'+sample.join('；'));
-  window.__pendingSched=probs.length?null:months;
+  // 排休：以班表的月份為準（排休工作表是空的也代表「這個月沒有人排休」）
+  const leave={}, leaveProbs=[], leaveInfo=[]; let leaveDiff=0;
+  if(lv){
+    const lms=new Set([...Object.keys(months),...Object.keys(lv.out)]);
+    for(const mm of [...lms].sort()){
+      const days=lv.out[mm]||{}; leave[mm]=days; let cnt=0,bn=0; const ns=[];
+      for(const pid of Object.keys(days)){ cnt+=days[pid].length; const cp=S.cfg.people.find(x=>x.id===pid);
+        if(!cp){ leaveProbs.push(mm+' 排休的「員'+pid.slice(1)+'」不在網頁名單內'); continue; }
+        const nm=lv.names[pid]; if(nm&&nm!==cp.name){ bn++; if(ns.length<3) ns.push('員'+pid.slice(1)+'：網頁「'+cp.name+'」≠ 檔案「'+nm+'」'); } }
+      if(bn) leaveProbs.push(mm+' 排休有 '+bn+' 位姓名與網頁名單不符：'+ns.join('；'));
+      let web=0, d=0; for(const p of S.cfg.people){ const cur=((S.leave[p.id]||{}).dates||{})[mm]||[]; web+=cur.length; if(!sameArr(cur,days[p.id])) d++; }
+      leaveDiff+=d; leaveInfo.push(mm+'：檔案 '+cnt+' 筆／'+Object.keys(days).length+' 人；網頁現在 '+web+' 筆；有 '+d+' 人不同');
+    }
+  }
+  window.__pendingSched={months:probs.length?null:months,leave:(lv&&!leaveProbs.length)?leave:null,hasLeave:!!lv};
+  const schedBlock=probs.length
+    ?`<p class="note" style="color:#e5534b;font-weight:700">班表：${probs.map(esc).join('<br>')}<br>請先修正再匯入。</p>`
+    :`<label class="note" style="display:block;margin:6px 0"><input type="checkbox" id="ck-sched" checked> <b>匯入班表</b>（整月取代）<br>${summary.map(esc).join('<br>')}</label>`;
+  const leaveBlock=!lv?'<p class="note">這個檔案沒有「排休」工作表，只會匯入班表（網頁上的排休不會動）。</p>'
+    :leaveProbs.length?`<p class="note" style="color:#e5534b;font-weight:700">排休：${leaveProbs.map(esc).join('<br>')}<br>請先修正再匯入排休。</p>`
+    :`<label class="note" style="display:block;margin:6px 0"><input type="checkbox" id="ck-leave" ${leaveDiff?'':'checked'}> <b>匯入排休</b>（<b>整月取代</b>網頁上全部組員的排休）<br>${leaveInfo.map(esc).join('<br>')}${leaveDiff?'<br><span style="color:#e5534b">網頁上的排休和檔案不同；勾選會把網頁上的改動蓋掉，請確認後再勾。</span>':''}</label>`;
   openModal(`<h2>匯入班表</h2>
-  <p class="note">${summary.map(esc).join('<br>')||'—'}${bad.length?'<br>另有 '+bad.length+' 行格式不對會略過':''}</p>
-  ${probs.length?'<p class="note" style="color:#e5534b;font-weight:700">'+probs.map(esc).join('<br>')+'<br>請先修正再匯入，目前不能寫入。</p>':'<p class="note">匯入會取代檔案裡出現的月份（整月班表）。</p><div class="row"><input class="field" id="admpw2" type="password" autocomplete="off" placeholder="管理密碼" style="width:220px"></div>'}
+  <p class="note">檔案：${esc(f.name)}${bad.length?'（另有 '+bad.length+' 行格式不對會略過）':''}</p>
+  ${schedBlock}${leaveBlock}
+  <div class="row"><input class="field" id="admpw2" type="password" autocomplete="off" placeholder="管理密碼" style="width:220px"></div>
   <p class="note" id="admstat2" role="status" style="min-height:1.5em;font-weight:700"></p>
-  <div class="acts"><button class="btn" data-act="close">${probs.length?'關閉':'取消'}</button>${probs.length?'':'<button class="btn pri" id="admbtn2" data-act="admsched">寫入後端</button>'}</div>`);
+  <div class="acts"><button class="btn" data-act="close">取消</button><button class="btn pri" id="admbtn2" data-act="admsched">寫入後端</button></div>`);
 }
 async function admSched(){
-  const months=window.__pendingSched; if(!months){ toast('請重新選擇檔案'); return; }
+  const P=window.__pendingSched; if(!P){ toast('請重新選擇檔案'); return; }
   const stat=$('#admstat2'), btn=$('#admbtn2'), pw=(($('#admpw2')||{}).value)||'';
   const say=(t,bad)=>{ if(stat){ stat.textContent=t; stat.style.color=bad?'#e5534b':''; } };
+  const doS=!!($('#ck-sched')&&$('#ck-sched').checked&&P.months), doL=!!($('#ck-leave')&&$('#ck-leave').checked&&P.leave);
+  if(!doS&&!doL){ say('請至少勾選一項要匯入的內容',true); return; }
   if(!pw){ say('請先輸入管理密碼',true); return; }
   if(btn){ btn.disabled=true; btn.textContent='寫入中…'; }
   const fail=t=>{ say(t,true); if(btn){ btn.disabled=false; btn.textContent='再試一次'; } };
   const done=[];
-  for(const mm of Object.keys(months).sort()){
-    const o=months[mm]; say('寫入 '+mm+' …');
-    let r,j={};
-    try{
-      r=await fetch(SCHED_API+'/api/admin/schedule',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({pw,month:mm,rows:o.rows,names:o.names})});
-      j=await r.json().catch(()=>({}));
-    }catch(e){ fail('連不到伺服器；'+(done.length?'已寫入：'+done.join('、')+'；':'沒有寫入；')+'請再試一次'); return; }
-    if(!r.ok){ fail((done.length?'已寫入：'+done.join('、')+'；':'')+mm+' 寫入失敗（'+r.status+'）：'+(r.status===404?'後端還不支援班表，請先更新 Cloudflare Worker':(j.error||'未知錯誤'))); return; }
-    done.push(mm);
+  const put=async(path,body)=>{ const r=await fetch(SCHED_API+path,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); const j=await r.json().catch(()=>({})); return {r,j}; };
+  const prefix=()=>(done.length?'已寫入：'+done.join('、')+'；':'沒有寫入；');
+  if(doS) for(const mm of Object.keys(P.months).sort()){
+    say('寫入班表 '+mm+' …'); let x;
+    try{ x=await put('/api/admin/schedule',{pw,month:mm,rows:P.months[mm].rows,names:P.months[mm].names}); }catch(e){ fail('連不到伺服器；'+prefix()+'請再試一次'); return; }
+    if(!x.r.ok){ fail(prefix()+mm+' 班表寫入失敗（'+x.r.status+'）：'+(x.r.status===404?'後端還不支援班表，請先更新 Cloudflare Worker':(x.j.error||'未知錯誤'))); return; }
+    done.push('班表 '+mm);
+  }
+  if(doL) for(const mm of Object.keys(P.leave).sort()){
+    say('寫入排休 '+mm+' …'); let x;
+    try{ x=await put('/api/admin/leave',{pw,month:mm,days:P.leave[mm]}); }catch(e){ fail('連不到伺服器；'+prefix()+'請再試一次'); return; }
+    if(!x.r.ok){ fail(prefix()+mm+' 排休寫入失敗（'+x.r.status+'）：'+(x.j.error||'未知錯誤')); return; }
+    done.push('排休 '+mm);
   }
   window.__pendingSched=null;
   let synced=true;
-  try{ const ms=await loadSchedules(S.cfg); S.months=ms; S.demo=false; if(!ms[S.cur]) S.cur=Object.keys(ms).sort()[0]||null; }catch(e){ synced=false; }
+  try{
+    if(doS){ const ms=await loadSchedules(S.cfg); S.months=ms; S.demo=false; if(!ms[S.cur]) S.cur=Object.keys(ms).sort()[0]||null; }
+    if(doL){ const g=await (await fetch(SCHED_API+'/api/leave')).json(); const L={}; for(const pid of Object.keys(g.leave||{})) L[pid]={personId:pid,dates:g.leave[pid]}; S.leave=L; }
+  }catch(e){ synced=false; }
   render();
-  openModal(`<h2>匯入班表完成</h2>
+  openModal(`<h2>匯入完成</h2>
   <p class="note">已寫入後端：${done.map(esc).join('、')}</p>
   ${synced?'':'<p class="note" style="color:#e5534b;font-weight:700">寫入成功，但重新讀取失敗；請重新整理頁面確認。</p>'}
   <div class="acts"><button class="btn pri" data-act="close">確定</button></div>`);
