@@ -1,0 +1,936 @@
+<title>輪班便當 v1.93</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+:root{
+  --bg:#f3f5f8; --surface:#ffffff; --fg:#17202c; --muted:#5b6878; --line:#d3dae3; --line-strong:#2a3544;
+  --accent:#1c5fb8; --accent-fg:#ffffff; --accent-soft:#dfeafa; --danger:#b3261e; --danger-soft:#fbe3e0; --ok:#1d7a46; --warn-soft:#fff2c4;
+  --g-日1:#f6f0d2; --g-日2:#e9ecf1; --g-A:#f4dfe7; --g-B:#f6e6d3; --g-C:#dce8f5; --g-D:#dfeedb; --g-tail:#f3dfdb;
+  --leave:#ffd93b; --t-early:#f8eece; --t-mid:#d6ece8; --t-night:#e0e1f2; --t-rest:#fbd9d6; --t-day:#fbf8e6;
+  --we:#8c1d2b; --we-fg:#ffe98a; --ho:#f7b9c8; --ho-fg:#7a1230; --shadow:0 8px 28px rgba(15,25,40,.18);
+  --font:"Noto Sans TC","PingFang TC","Microsoft JhengHei","Heiti TC",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12171e; --surface:#1b222c; --fg:#e8edf3; --muted:#9aa7b6; --line:#334052; --line-strong:#a9b6c6;
+  --accent:#6aa5ee; --accent-fg:#0d1622; --accent-soft:#223652; --danger:#ff8f86; --danger-soft:#4a2320; --ok:#6fd59a; --warn-soft:#4a3f12;
+  --g-日1:#3f3b2a; --g-日2:#343a42; --g-A:#3f303a; --g-B:#403629; --g-C:#2f3f52; --g-D:#324536; --g-tail:#41322f;
+  --leave:#e0b72a; --t-early:#4b4428; --t-mid:#244440; --t-night:#2f3350; --t-rest:#4a2725; --t-day:#423e2b;
+  --we:#5b1620; --we-fg:#ffe98a; --ho:#7a2a3f; --ho-fg:#ffd5df; --shadow:0 8px 28px rgba(0,0,0,.5); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12171e; --surface:#1b222c; --fg:#e8edf3; --muted:#9aa7b6; --line:#334052; --line-strong:#a9b6c6;
+  --accent:#6aa5ee; --accent-fg:#0d1622; --accent-soft:#223652; --danger:#ff8f86; --danger-soft:#4a2320; --ok:#6fd59a; --warn-soft:#4a3f12;
+  --g-日1:#3f3b2a; --g-日2:#343a42; --g-A:#3f303a; --g-B:#403629; --g-C:#2f3f52; --g-D:#324536; --g-tail:#41322f;
+  --leave:#e0b72a; --t-early:#4b4428; --t-mid:#244440; --t-night:#2f3350; --t-rest:#4a2725; --t-day:#423e2b;
+  --we:#5b1620; --we-fg:#ffe98a; --ho:#7a2a3f; --ho-fg:#ffd5df; --shadow:0 8px 28px rgba(0,0,0,.5); color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:14px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:14px 40px}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;margin-bottom:12px}
+.brand{display:flex;align-items:baseline;gap:10px;margin-right:auto}
+h1{margin:0;font-size:22px;font-weight:700;letter-spacing:.04em}
+.tag{font-size:12px;color:var(--muted)}
+.mnav{display:flex;align-items:center;gap:6px}
+.mnav strong{min-width:150px;text-align:center;font-size:16px;font-variant-numeric:tabular-nums}
+.mnav small{display:block;font-weight:400;color:var(--muted);font-size:11px}
+.ib{border:1px solid var(--line);background:var(--surface);border-radius:6px;width:34px;height:34px;font-size:18px;line-height:1}
+.ib:disabled{opacity:.35;cursor:default}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:12px;padding:2px 9px;border-radius:99px;border:1px solid var(--line);background:var(--surface);color:var(--muted)}
+.chip.on{background:var(--accent-soft);color:var(--accent);border-color:transparent;font-weight:500}
+.chip.warn{background:var(--warn-soft);color:var(--fg);border-color:transparent}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:6px 13px;font-weight:500}
+.btn:hover{border-color:var(--accent)}
+.btn.pri{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.btn.dng{color:var(--danger)}
+.btn:disabled{opacity:.4;cursor:default}
+.sp{flex:1}
+.search{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:6px 10px;min-width:150px}
+.banner{background:var(--warn-soft);border-radius:6px;padding:8px 12px;margin-bottom:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.banner.err{background:var(--danger-soft)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);margin:2px 0 8px}
+.legend i{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-3px;margin-right:4px;border:1px solid var(--line)}
+.wrap{overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:8px;max-height:calc(100vh - 220px);min-height:200px}
+table{border-collapse:separate;border-spacing:0;font-variant-numeric:tabular-nums}
+th,td{padding:0;text-align:center;font-size:12px;white-space:nowrap}
+thead th{position:sticky;top:0;z-index:4;background:var(--surface);border-bottom:2px solid var(--line-strong);height:38px;min-width:33px;font-weight:500}
+thead th span{display:block;font-size:10px;color:var(--muted);font-weight:400}
+thead th.we{background:var(--we);color:var(--we-fg)} thead th.we span{color:var(--we-fg)}
+thead th.ho{background:var(--ho);color:var(--ho-fg)} thead th.ho span{color:var(--ho-fg)}
+.nm{position:sticky;left:0;z-index:3;text-align:left;min-width:108px;max-width:108px;padding:0 8px;border-right:2px solid var(--line-strong)}
+thead th.nm{z-index:6;background:var(--surface)}
+.nm button{all:unset;cursor:pointer;display:block;width:100%;padding:7px 0;overflow:hidden;text-overflow:ellipsis;font-size:13px;font-weight:500}
+.nm button:focus-visible{outline:2px solid var(--accent)}
+.nm.mk1{box-shadow:inset 5px 0 0 #f2c200}
+.nm.mk2 button{background:#f3e39a;color:#2a2200;border-radius:3px;padding-left:4px}
+tr.blk td{height:24px;text-align:left;font-size:12px;font-weight:700;letter-spacing:.06em;border-top:3px solid var(--line-strong);padding:0}
+tr.blk td div{position:sticky;left:0;display:inline-block;padding:3px 10px;width:max-content}
+tr.blk td.fill{border-top:3px solid var(--line-strong)}
+tr.first td,tr.first th{border-top:0}
+tbody tr:not(.blk) td,tbody tr:not(.blk) th{border-top:1px solid var(--line)}
+tbody tr.blk + tr td, tbody tr.blk + tr th{border-top:0}
+tbody tr.last td, tbody tr.last th{border-bottom:3px solid var(--line-strong)}
+td.c{min-width:33px;height:30px;line-height:1.05;cursor:default;position:relative;border-left:1px solid color-mix(in srgb,var(--line) 55%,transparent)}
+.ed td.c{cursor:pointer}
+td.c small{display:block;font-size:9px;opacity:.75}
+td.t-early,td.t-mid,td.t-night,td.t-day{background:transparent} td.t-rest{background:var(--t-rest);color:var(--muted)}
+td.adj::after{content:"";position:absolute;right:0;top:0;border-style:solid;border-width:0 8px 8px 0;border-color:transparent #e0701b transparent transparent}
+td.bad{outline:2px solid var(--danger);outline-offset:-2px;font-weight:700}
+td.pick{outline:2px solid var(--accent);outline-offset:-2px}
+tr.dim{opacity:.3}
+td.st{min-width:34px;padding:0 4px;color:var(--muted);background:var(--surface)}
+td.st.short{color:var(--danger);font-weight:700}
+thead th.st{min-width:34px;padding:0 4px;font-size:11px}
+tfoot td{position:sticky;bottom:0;background:var(--surface);z-index:3;border-top:2px solid var(--line-strong);height:24px;font-size:11px;color:var(--muted)}
+tfoot td.nm{z-index:5;color:var(--fg)}
+.sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.card h3{margin:0 0 4px;font-size:12px;color:var(--muted);font-weight:500}
+.card b{font-size:22px;font-variant-numeric:tabular-nums}
+.issues{margin-top:12px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.issues h2{margin:0 0 6px;font-size:14px}
+.issues ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px;max-height:220px;overflow:auto}
+.issues li button{all:unset;cursor:pointer;display:block;padding:3px 6px;border-radius:4px;font-size:13px}
+.issues li button:hover{background:var(--danger-soft)}
+.issues .ok{color:var(--ok);font-weight:500}
+.ov{position:fixed;inset:0;background:rgba(10,16,24,.5);z-index:50;display:flex;align-items:flex-start;justify-content:center;padding:max(20px,env(safe-area-inset-top,0px)) 12px 20px;overflow:auto}
+.dlg{background:var(--surface);border-radius:10px;box-shadow:var(--shadow);width:min(720px,100%);padding:16px 18px;margin:auto 0}
+.dlg h2{margin:0 0 10px;font-size:18px}
+.dlg h4{margin:14px 0 6px;font-size:13px;color:var(--muted);font-weight:500}
+.row{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:6px 0}
+.row label{display:flex;gap:6px;align-items:center}
+.field{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:5px 8px;min-width:0}
+.acts{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
+.note{color:var(--muted);font-size:12px}
+.list{max-height:200px;overflow:auto;border:1px solid var(--line);border-radius:6px;padding:6px 10px;font-size:13px;background:var(--bg)}
+.list.bad{border-color:var(--danger);background:var(--danger-soft)}
+.pop{position:fixed;z-index:60;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);padding:6px;display:grid;grid-template-columns:repeat(2,1fr);gap:4px;width:210px}
+.pop button{border:1px solid var(--line);background:var(--bg);border-radius:5px;padding:5px 6px;text-align:left;font-size:13px}
+.pop button:hover{border-color:var(--accent)}
+.pop .cap{grid-column:1/-1;font-size:12px;color:var(--muted);padding:2px 4px}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:6px}
+.cal div{border-radius:5px;padding:3px 2px;text-align:center;font-size:12px;min-height:44px;background:var(--bg)}
+.cal .h{min-height:0;color:var(--muted);font-size:11px;background:none}
+.cal div b{display:block;font-size:10px;color:var(--muted);font-weight:400}
+td.lv{background:var(--leave)!important;color:#1a1400!important;font-weight:700}
+.dayb{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:4px 0;font-size:13px;line-height:1.1}
+.dayb small{display:block;font-size:10px;color:var(--muted)}
+.dayb.on{background:#e5484d;border-color:#e5484d;color:#fff}
+.dayb.on small{color:#fff}
+.pt{width:100%;border-collapse:collapse}
+.pt th,.pt td{padding:3px 4px;text-align:left;font-size:13px}
+.pt th{color:var(--muted);font-weight:500;font-size:12px}
+.pt input[type=text]{width:100%}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:max(18px,env(safe-area-inset-bottom,0px));background:var(--line-strong);color:var(--bg);padding:8px 16px;border-radius:99px;z-index:80;font-size:13px;max-width:90vw}
+@media (max-width:560px){.mnav strong{min-width:120px}.wrap{max-height:calc(100vh - 260px)}}
+@media (prefers-reduced-motion:no-preference){.btn,.ib{transition:border-color .12s}}
+
+thead th.lvh{background:var(--leave)!important;color:#1a1400!important;font-weight:700!important}
+thead th.lvh span{color:#1a1400!important;font-weight:700!important}
+
+/* 自己的那一列：姓名粗體並加外框，方便在全部組員中找到自己 */
+tr.me th.nm button{font-weight:800;text-decoration:underline}
+tr.me td.c{box-shadow:inset 0 1px 0 var(--fg),inset 0 -1px 0 var(--fg)}
+
+</style>
+<div id="app"></div>
+<div id="modal"></div>
+<div id="pop"></div>
+<script>
+(function(){
+'use strict';
+// ==LOGIC-START==
+const CYCLE='休夜夜夜休休早早早中中中'.split('');
+const ANCHOR=Date.UTC(2026,11,1)/864e5;               // 2026/12/01
+const OFFS={A:1,B:4,C:7,D:10};                        // 起算日當天各組走到循環第幾天
+const GROUPS=['日1','日2','A','B','C','D'];
+const GNAME={'日1':'日班 B01（不分組）','日2':'日班 B02（常早班）',A:'A 班',B:'B 班',C:'C 班',D:'D 班'};
+const TIMES={B01:[8,17],B02:[8,16],B03:[16,24],B04:[0,8]};
+const BLABEL={B01:'日',B02:'早',B03:'中',B04:'夜'};
+const p2=n=>String(n).padStart(2,'0');
+const dn=(y,m,d)=>Math.floor(Date.UTC(y,m-1,d)/864e5);
+const dim=(y,m)=>new Date(Date.UTC(y,m,0)).getUTCDate();
+const wday=(y,m,d)=>(dn(y,m,d)+4)%7;                  // 0=日 … 6=六
+const isRot=c=>OFFS[c]!==undefined;
+const dkey=(y,m,d)=>y+'-'+p2(m)+'-'+p2(d);
+const pb=s=>s.slice(0,3), pa=s=>s.slice(3);
+const clone=o=>JSON.parse(JSON.stringify(o));
+const HOL_DEFAULT=['2026-12-25','2027-01-01','2027-02-04','2027-02-05','2027-02-08','2027-02-09','2027-02-10','2027-03-01','2027-04-05','2027-04-06','2027-04-30','2027-06-09','2027-09-15','2027-09-28','2027-10-11','2027-10-25','2027-12-24','2027-12-31'];
+
+function cycType(cat,y,m,d){ const p=(((OFFS[cat]-1+dn(y,m,d)-ANCHOR)%12)+12)%12; return CYCLE[p]; }
+function typeOf(s){ const b=pb(s),a=pa(s); if(a[0]==='H') return '休'; return b==='B03'?'中':b==='B04'?'夜':'早'; }
+function cycleCells(cat,y,m){
+  const out=[]; for(let d=1;d<=dim(y,m);d++){
+    const t=cycType(cat,y,m,d);
+    out.push(t==='早'?['B02','W01']:t==='中'?['B03','W01']:t==='夜'?['B04','W01']:['B02','H01']);
+  } return out;
+}
+function dayCells(hol,cat,y,m){
+  const b=cat==='日1'?'B01':'B02', out=[];
+  for(let d=1;d<=dim(y,m);d++){
+    const w=wday(y,m,d);
+    if(hol.has(dkey(y,m,d))) out.push(['B02','H05']);
+    else if(w===6) out.push(['B02','H01']);
+    else if(w===0) out.push(['B02','H03']);
+    else out.push([b,'W01']);
+  } return out;
+}
+// 休息日標籤 H05 > H03 > H01（與 Excel 版相同）：回傳 H03 不足天數
+function labelRest(c,y,m,n05,n03){
+  const isRest=x=>x[1]==='H01'||x[1]==='H03';
+  let cnt=c.filter(x=>x[1]==='H05').length;
+  while(cnt<n05){ const k=c.findIndex(isRest); if(k<0) break; c[k]=['B02','H05']; cnt++; }
+  const take=new Set(); let sel=0;
+  for(let k=0;k<c.length;k++) if(isRest(c[k])&&sel<n03&&wday(y,m,k+1)===0){ take.add(k); sel++; }
+  for(let k=0;k<c.length;k++) if(isRest(c[k])&&!take.has(k)&&sel<n03){ take.add(k); sel++; }
+  for(let k=0;k<c.length;k++) if(isRest(c[k])) c[k]=['B02',take.has(k)?'H03':'H01'];
+  return Math.max(0,n03-sel);
+}
+function targets(cfg,y,m){
+  const t=dayCells(new Set(cfg.holidays),'日2',y,m);
+  return {n05:t.filter(c=>c[1]==='H05').length,n03:t.filter(c=>c[1]==='H03').length,n01:t.filter(c=>c[1]==='H01').length};
+}
+function genMonth(cfg,people,y,m){
+  const hol=new Set(cfg.holidays), tg=targets(cfg,y,m), rows={};
+  for(const p of people){
+    let cells;
+    if(isRot(p.cat)){ cells=cycleCells(p.cat,y,m); labelRest(cells,y,m,tg.n05,tg.n03); }
+    else cells=dayCells(hol,p.cat,y,m);
+    rows[p.id]=cells.map(c=>c[0]+c[1]);
+  }
+  return rows;
+}
+function newMonth(cfg,y,m,prevMonth){
+  const people=clone(cfg.people), rows=genMonth(cfg,people,y,m), prev={};
+  if(prevMonth){ const pn=dim(prevMonth.y,prevMonth.m); for(const p of people){ const r=prevMonth.rows[p.id]; if(r) prev[p.id]=r.slice(Math.max(0,pn-6),pn); } }
+  return {y,m,people,rows,base:clone(rows),prev,marks:{},ts:Date.now()};
+}
+// 連續上班不超過 6 天、相鄰上班日休息大於 12 小時
+function checkSeq(prev,cells,name){
+  const out=[], seq=prev.concat(cells), off=prev.length; let run=0;
+  for(let i=0;i<seq.length;i++){
+    if(pa(seq[i])==='W01'){
+      run++;
+      if(run===7){ const d=i-off+1; if(d>=1) out.push({day:d,name,msg:`連續上班第 7 天（${d} 日）`}); }
+    } else run=0;
+    if(i>=1&&pa(seq[i])==='W01'&&pa(seq[i-1])==='W01'){
+      const rest=24+TIMES[pb(seq[i])][0]-TIMES[pb(seq[i-1])][1], d=i-off+1;
+      if(rest<=12&&d>=1) out.push({day:d,name,msg:`${d-1<1?'上月底':(d-1)+' 日'}→${d} 日休息只有 ${rest} 小時（需大於 12）`});
+    }
+  } return out;
+}
+function monthIssues(mo){
+  const out=[];
+  for(const p of mo.people){ const r=mo.rows[p.id]; if(!r) continue; for(const x of checkSeq(mo.prev[p.id]||[],r,p.name)) out.push({...x,pid:p.id}); }
+  return out.sort((a,b)=>a.day-b.day);
+}
+function stats(rows){ let h5=0,h3=0,h1=0; for(const s of rows){ const a=pa(s); if(a==='H05')h5++; else if(a==='H03')h3++; else if(a==='H01')h1++; } return {h5,h3,h1}; }
+// 回推檢查：最後 14 天與組別循環不同的天數
+function lookback(mo,limit){
+  const n=dim(mo.y,mo.m), s=Math.max(1,n-13), out=[];
+  for(const p of mo.people){ if(!isRot(p.cat)) continue; const r=mo.rows[p.id]; let diff=0;
+    for(let d=s;d<=n;d++) if(typeOf(r[d-1])!==cycType(p.cat,mo.y,mo.m,d)) diff++;
+    if(diff>=limit) out.push({pid:p.id,name:p.name,diff}); }
+  return out;
+}
+function sortedPeople(people){
+  return people.map((p,i)=>({p,i})).sort((x,y)=>
+    (x.p.tail?1:0)-(y.p.tail?1:0) || GROUPS.indexOf(x.p.cat)-GROUPS.indexOf(y.p.cat) || x.i-y.i).map(o=>o.p);
+}
+// 調換：mode 'swap'＝換班（只換 d1~d2 的班別碼）；'group'＝調班別（d1 起兩人互換班別碼與組別、位置）
+function doSwap(mo,master,mode,idA,idB,d1,d2){
+  const m=clone(mo), n=dim(m.y,m.m), end=mode==='group'?n:d2;
+  const last={type:mode,a:idA,b:idB,d1,d2:end,rowsA:mo.rows[idA].slice(),rowsB:mo.rows[idB].slice(),baseA:mo.base[idA].slice(),baseB:mo.base[idB].slice(),
+    marks:clone(mo.marks),people:clone(mo.people),master:clone(master)};
+  for(let d=d1;d<=end;d++){
+    [m.rows[idA][d-1],m.rows[idB][d-1]]=[m.rows[idB][d-1],m.rows[idA][d-1]];
+    if(mode==='group') [m.base[idA][d-1],m.base[idB][d-1]]=[m.base[idB][d-1],m.base[idA][d-1]];
+  }
+  let mp=clone(master);
+  if(mode==='group'){
+    const swapGrp=list=>{ const ia=list.findIndex(p=>p.id===idA), ib=list.findIndex(p=>p.id===idB); if(ia<0||ib<0) return;
+      const a=list[ia], b=list[ib], c=a.cat, t=!!a.tail; a.cat=b.cat; a.tail=!!b.tail; b.cat=c; b.tail=t; list[ia]=b; list[ib]=a; };
+    swapGrp(m.people); swapGrp(mp.people);
+    m.marks[idA]=2; m.marks[idB]=2;
+  } else { if(m.marks[idA]!==2) m.marks[idA]=1; if(m.marks[idB]!==2) m.marks[idB]=1; }
+  m.ts=Date.now();
+  return {month:m,master:mp,last};
+}
+function undoSwap(mo){
+  const L=mo.last; if(!L) return null; const m=clone(mo);
+  m.rows[L.a]=L.rowsA.slice(); m.rows[L.b]=L.rowsB.slice(); m.base[L.a]=L.baseA.slice(); m.base[L.b]=L.baseB.slice();
+  m.marks=clone(L.marks); m.people=clone(L.people); delete m.last; m.ts=Date.now();
+  return {month:m,master:clone(L.master)};
+}
+function samplePeople(){
+  const L=[]; let n=0; const add=(cat,k,tail)=>{ for(let i=0;i<k;i++){ n++; L.push({id:'p'+p2(n),name:'範例'+p2(n),cat,tail:!!tail}); } };
+  add('日1',2); add('日2',5); add('A',5); add('B',5); add('C',5); add('D',5); add('日1',1,true); add('A',1,true); add('B',1,true);
+  return L;
+}
+function defaultCfg(){ return {people:samplePeople(),holidays:HOL_DEFAULT.slice(),limit:4}; }
+// ==LOGIC-END==
+
+const ENC={"salt": "GUOl1cdrKC4/czT9z3kipw==", "iter": 600000, "blobIv": "e7oVbwluqXHFp7rp", "blob": "OYiD2kwC7rBCLnaO2q3lKxnC/ok8cKhSaQUh3lC2ccDAqnxK+gGIX/IcD6znXW6oAMi8ch8Q50omYkEGBTvx/8dJpY4PvxvFC2U6LgJ1qfgiWKL5u6yX31QuKgmjr1TJXY5MLKDhnJP5+ZzUoYkZmyj4pdvW2cwB5HCwP8vXzLou5XOTq49rVCNqw3DvIkagqgyntZr3iIcDZ1UCX9bWqPyOPWgbfHvFbmmOAUUnOxjK+39g5nBwkGrmwGvzyOM976oxn8ZTJSRIh5zGeYFB6Twj5E3UIvOfusHDA6d9gMtPVN1tfYFd1KVPrBj1wgJpwYJnyK37+gRZUUh94yBc9j2KY0s4dtsBkUUzgm/UWq2Ix2zVEJbYO7botHautRsxmk2AubcJ63ISlboUxzqmnDdglkyylni7k5cBc7KguLEmm+uS6vOV34Gbx29QWPRgFoFtbo8449BucK10SinIFDueDvB+AKocANB24b1N96LwsR7oEQoBABCn+0R/klzIbVyht41XpIQpXcpmpDgVb6HHkq4Z0WheGbovLaaO6icgiHsANjXoeOCaT4hTVAXIoUFBDt+xFcxPyCdgxse/JeKtPLWIR+gEMGrRyXLa8epfBLAcV3kcAOB8Y/eVb5uuBUiaYOoR9AEomhVl3CzNQlxdYp7P2zG3mmBjDC9wyOWgeOPc+tpYBJgj1ZY17rh2JLhkn5qTcyK7VOycU6KB91xB3W+Mtop+kDfL/lZ8O2D+n8QU6VIJcy3aF6AiSqdZkqY3Uv7W6j2WK92sfYpyq/Ohr31pYKsdMKl0FzPx94n7NTJgCGA57laHiB+N0p1v7mte5EKR2ka39ei22FNsDovEJCFed1hxYkIRni02kriHjykx8XKz5hjfdnaCRwW93rCPKDs1AcQDVdYQnsuz2OJpE4+QwxcM7EuDGtqqyjVxytj21ZdJrygrCk+9x+gC8VMsdwCCvhouovZT2gvF+6oroSRkVmyE5LR9eNmlNMtRKapsZgnrXPSVqznWt+guGnF1/F6qWs99ehbmvfkYDA0QTD4GEzCPGpL9mj+u0PAOwXR+fZ54uUzpS/nRRiCcTQWxw33fCGmJfNyDb/ylFhZDhSKgF1iVwlEBSEdfVDmkj8BWpN25WRrHXc5/9TiFhAgHQHeq57woZRoKa/s1XD24ScHsOHJVtL0IpEdZDbq2abrbfqX3l3w0UuDR88OA5vWsGX3TA8aom8wL4vzPr3AZbrgQeoeJMiDMLscH2hie0CWQiS8tiEEVhiXqrWO/1L5tsqF3Y+1fxmJKQM3qB5Kd70WaGfEAxQ8esn0be2K6jXFjlm4DU3+c+4tsjk4IEPJYknpwS38GHSUxxn2KD3wJbxKBkxyg2NPh3z3E9zCWhosZc1weZ9DSR5mhXBg4vOdyOc5DU58NN7I7qMgh3dnw52iayMea1xtZm5rtqLRi31HGgQqrT+XheRIDlkPr56ZK+tVboxVqaZ0ROPbKn7tTZTgSwEGQcNZXMFqi8hINzeCzdTPV6KmdC8OzxqSzpsswRfi+RMnbzl9dH9wlO08RUEkg7mrweubyvN/4MTkZf/i9j6+luxNW3WTp/WJ4sXCHei2YcdV61mNOmACwvCTmXUsA+7AXqNevQhu5E6TI3qBfdNl3slA/DNTOFSbQvCEDF42FYdbNFs+YalKEODPOcoVNq32z8Mnq/lnT90E45tg33Lzh10PwPDCBN/UFb4Jn766x15TbRY16rGhvk0Pey3igLrwYTxAR0zO9LrnwFxGMSSwGEG8TcPJLPlxmF/clNxGR+Op8+chWIxjcdOAffKrza8YargIyjL6fadvMCtX6/Xem6R1c0NvEjhEjcHk/JHGHzjYHXGRMGS/5shMp1eaE3CNeCtNd1r9HQOqXEL1Eb5VupFzJ4rR09x9uIF/y0l1LE0iguUipqCKrNZq4CUnFOqz6/kMJyb62d07C1qwXQiAV0SlYCoEt7nNfnSery634+D+/B5vrJzljCnvB2Plhpa/sasQnxpyeRjVneAMYipyWimESTjJhe7P6O69Ed8iOZoEu+1cZzLXKixNAzP+r3eD+Yfgi8KCbwX9gZKNCBR0RWKzxGjrXfaQqiaVLxbwqMpBn21fra7vxJ4/FZlkpkC0cs76NrZPlDA32j75q57etWSJ8FbGksMxonU1+J7bU6Dc4jiJIzVc7yX8nYJb9XvaQdCRUfWeuelkmg0ozvunAuf3pmxCltun85oPTN36wSjPoE/uY1t116NUIr2sCoUBlscBFLDE5ViSZYavWaIbH860aRBi0QVFcTYKEoIRe26X9j2OELTeGKnJ8M8ogR2DbnJtQraw9rCjHV/XVayCvT2pv5jG14KkbiUXBNn1+2t1PontjJjCrweEkd+luf8e+ijL688ZSbSF2Dfkn+pRyhhrxpkBO8+LCaadxbTTr9P7lOfZH0zq1sBfKVxVngxvb2O7FhWfDlCJE0oIfhBkNnBnhGIWzp9cmeANX5/7NJgxyvZSrNVyzNQxRSc/IloyACY/4b0XvJ9+tJIXFp+C19M1ypjm2Ipqr1YpGO1hQ6f9V"};
+
+const b64d=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function encUnlock(id){
+  const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(id),'PBKDF2',false,['deriveKey']);
+  const kek=await crypto.subtle.deriveKey({name:'PBKDF2',salt:b64d(ENC.salt),iterations:ENC.iter,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['decrypt']);
+  for(const w of ENC.wraps){
+    try{ const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64d(w.iv)},kek,b64d(w.ct)); return JSON.parse(new TextDecoder().decode(pt)); }catch(e){}
+  }
+  return null;
+}
+
+async function encData(kb64){
+  const key=await crypto.subtle.importKey('raw',b64d(kb64),{name:'AES-GCM'},false,['decrypt']);
+  const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64d(ENC.blobIv)},key,b64d(ENC.blob));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+let k=null, me=null;
+try{ k=sessionStorage.getItem('shift_k'); me=sessionStorage.getItem('shift_me'); }catch(e){}
+if(!k||!me){ location.replace('index.html'); }
+const PAYLOAD=(k&&me)?encData(k):new Promise(()=>{});
+const SCHED_API='https://shift-leave.davanr.workers.dev';
+let schedErr='', schedLoading=true;
+// 組別：把某人整月的班別（B01~B04）和六種班型（日1、日2、A~D）逐日比對，取差異最少者
+function autoCat(codes,y,m,hol){
+  const sh=codes.map(c=>c.slice(0,3)); let best=GROUPS[0],bd=1e9;
+  for(const g of GROUPS){
+    const cells=isRot(g)?cycleCells(g,y,m):dayCells(hol,g,y,m); let d=0;
+    for(let i=0;i<sh.length;i++) if(cells[i][0]!==sh[i]) d++;
+    if(d<bd){ bd=d; best=g; }
+  } return best;
+}
+// 後端回傳 {月份:{rows:{pid:[班別碼]},names:{pid:遮罩姓名}}}；名單、順序、姓名、班別全部以 Excel 匯出為準
+function buildMonths(cfg,data){
+  const hol=new Set(cfg.holidays||[]), out={};
+  for(const mm of Object.keys(data||{})){
+    const rec=data[mm]||{}, rows=rec.rows||{}, names=rec.names||{}, y=+mm.slice(0,4), m=+mm.slice(5,7);
+    const pids=Object.keys(rows).sort(), cfgBy={}; for(const p of (cfg.people||[])) cfgBy[p.id]=p;
+    const people=pids.map(id=>({id,name:names[id]||(cfgBy[id]&&cfgBy[id].name)||id,cat:autoCat(rows[id],y,m,hol),tail:!!(cfgBy[id]&&cfgBy[id].tail)}));
+    const r={}, b={}; for(const id of pids){ r[id]=rows[id].slice(); b[id]=rows[id].slice(); }
+    out[mm]={y,m,people,rows:r,base:b,prev:{},marks:{},ts:Date.now()};
+  } return out;
+}
+async function loadSchedules(cfg){
+  let emp=null; try{ emp=sessionStorage.getItem('shift_emp'); }catch(e){}
+  if(!emp) throw new Error('沒有工號，請重新登入');
+  const r=await fetch(SCHED_API+'/api/schedule',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({emp})});
+  const j=await r.json().catch(()=>({}));
+  if(r.status===404) throw new Error('後端還不支援班表，請管理者更新 Cloudflare Worker');
+  if(!r.ok) throw new Error(j.error||('讀取班表失敗（'+r.status+'）'));
+  return buildMonths(cfg,j.months||{});
+}
+function gateShow(){ location.replace('index.html'); }
+window.claude={use:async n=>{
+  if(n==='db') return {
+    doc:p=>({
+      onSnapshot:(next)=>{ PAYLOAD.then(d=>setTimeout(()=>next(p==='config/main'?{exists:true,data:()=>d.cfg}:{exists:false,data:()=>undefined}),10)); return()=>{}; },
+      set:async()=>{}, get:async()=>({exists:false})
+    }),
+    collection:name=>({
+      onSnapshot:(next)=>{
+        if(name!=='months'){ setTimeout(()=>next({docs:[]}),10); return()=>{}; }
+        try{ S.demo=false; S.months={}; S.cur=null; }catch(e){}            // 不顯示依規則推算的範例班表
+        PAYLOAD.then(async d=>{
+          let months={}; try{ months=await loadSchedules(d.cfg); }catch(e){ schedErr=String((e&&e.message)||e); }
+          schedLoading=false;
+          const now=new Date(), key=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0'), ks=Object.keys(months).sort();
+          try{ S.cur=months[key]?key:(ks[ks.length-1]||null); }catch(e){}
+          setTimeout(()=>{ next({docs:ks.map(x=>({id:x,exists:true,data:()=>months[x]}))}); try{ render(); }catch(e){} },10);
+        });
+        return()=>{};
+      }
+    })
+  };
+  if(n==='user') return {canEdit:async()=>false,isOwner:async()=>false,id:async()=>null};
+  return null;
+}};
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const S={leave:{},uid:null,me:null,cfgReady:false,cfg:defaultCfg(),months:{},cur:null,db:null,user:null,dbOk:false,canEdit:true,demo:true,cfgInDb:false,monthsInDb:0,slow:false,q:'',msg:'',modal:null,pick:null,loaded:0};
+const mid=(y,m)=>y+'-'+p2(m);
+const nextId=(y,m)=>m===12?mid(y+1,1):mid(y,m+1);
+const parseId=id=>({y:+id.slice(0,4),m:+id.slice(5,7)});
+const curMonth=()=>S.months[S.cur]||null;
+const ids=()=>Object.keys(S.months).sort();
+function boot(){ const mo=newMonth(S.cfg,2026,11,null); S.months={[mid(2026,11)]:mo}; S.cur=mid(2026,11); }
+function normCfg(c){ const d=defaultCfg(); return {people:Array.isArray(c.people)?c.people:d.people,holidays:Array.isArray(c.holidays)?c.holidays:d.holidays,limit:+c.limit>0?+c.limit:4}; }
+let toastT=0;
+function toast(t){ let e=$('#toast'); if(!e){ e=document.createElement('div'); e.id='toast'; e.className='toast'; e.setAttribute('role','status'); document.body.appendChild(e); } e.textContent=t; e.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>{e.hidden=true;},3200); }
+
+// ---------- 儲存（一次一筆；示範模式只存在畫面） ----------
+const wq={busy:false,jobs:new Map()};
+function enqueue(path,data){ wq.jobs.set(path,data); pump(); }
+async function pump(){
+  if(wq.busy) return; wq.busy=true;
+  while(wq.jobs.size){ const [path,data]=wq.jobs.entries().next().value; wq.jobs.delete(path);
+    try{ await S.db.doc(path).set(JSON.parse(JSON.stringify(data))); }catch(e){ toast('儲存失敗：'+((e&&e.code)||(e&&e.message)||e)); } }
+  wq.busy=false;
+}
+function saveMonth(mo){ const id=mid(mo.y,mo.m); S.months[id]=mo; if(!S.demo&&S.db) enqueue('months/'+id,mo); }
+function saveCfg(){ if(!S.demo&&S.db) enqueue('config/main',S.cfg); }
+async function seedDb(){
+  if(!S.db||!S.canEdit) return;
+  S.demo=false; S.cfgInDb=true; saveCfg(); const mo=curMonth(); if(mo) saveMonth(mo); toast('已建立範例資料，之後的修改會儲存並讓組員看到'); render();
+}
+
+// ---------- 畫面 ----------
+function monthLabel(mo){ return `${mo.y-1911} 年 ${mo.m} 月`; }
+function render(){
+  const sx=($('.wrap')||{}).scrollLeft||0, sy=($('.wrap')||{}).scrollTop||0;
+  $('#app').innerHTML=topHtml()+barHtml()+bodyHtml();
+  const w=$('.wrap'); if(w){ w.scrollLeft=sx; w.scrollTop=sy; }
+}
+function topHtml(){
+  const mo=curMonth(), list=ids(), i=list.indexOf(S.cur);
+  const chips=[]; chips.push(S.demo?'<span class="chip warn">範例資料・不會儲存</span>':'<span class="chip on">已連線資料庫</span>');
+  chips.push(S.canEdit?'<span class="chip on">編輯者</span>':'<span class="chip">組員</span>');
+  if(meName()) chips.push('<button class="chip" data-act="logout">我是 '+esc(meName())+'（換人）</button>');
+  return `<header class="top"><div class="brand"><h1>輪班便當</h1><span class="tag">網頁版 v1.93</span></div>
+  <div class="mnav"><button class="ib" data-act="prev" aria-label="上一個月" ${i<=0?'disabled':''}>‹</button>
+  <strong>${mo?monthLabel(mo):'—'}<small>${mo?mo.y+'/'+p2(mo.m):''}</small></strong>
+  <button class="ib" data-act="next" aria-label="下一個月" ${i<0||i>=list.length-1?'disabled':''}>›</button></div>
+  <div class="chips">${chips.join('')}</div></header>`;
+}
+function barHtml(){
+  const mo=curMonth(); let b='';
+  if(S.demo&&S.dbOk&&S.canEdit) b+=`<div class="banner">資料庫還是空的，現在看到的是範例人員。<button class="btn pri" data-act="seed">建立範例資料並開始使用</button><span class="note">之後請在「設定」貼上真正的人員名單。</span></div>`;
+  else if(S.demo&&S.dbOk&&!S.canEdit) b+=`<div class="banner">排班人員還沒有建立班表，這是範例畫面。</div>`;
+  else if(S.demo&&!S.dbOk) b+=`<div class="banner">目前沒有連到資料庫（可能尚未登入或在預覽中），顯示範例，修改不會儲存。</div>`;
+  if(S.slow&&S.demo&&S.dbOk) b+=`<div class="banner err">資料庫回應很慢，先顯示範例；連上後會自動更新。</div>`;
+  let a='';
+  if(S.dbOk&&mo) a+=`<button class="btn" data-act="leave">我的排休</button>`;
+  // 匯出／匯入只對通過管理密碼驗證的人顯示；其他人只看到「管理」入口
+  if(S.dbOk&&typeof exportLeaveCsv==='function'){
+    if(!S.adm) a+=`<button class="btn" data-act="admlogin">管理</button>`;
+    else { if(mo) a+=`<button class="btn" data-act="exportcsv">匯出排休 CSV</button><button class="btn" data-act="importcsv">匯入排休 CSV</button>`; a+=`<button class="btn" data-act="importsched">匯入班表 CSV</button>`; }   // 沒有班表時也要能匯入第一份班表
+  }
+  if(S.canEdit&&mo){
+    a+=`<button class="btn pri" data-act="gen">產生下月班表</button><button class="btn" data-act="swap">調換</button>`;
+    if(mo.last) a+=`<button class="btn" data-act="undo">復原最後一次調換</button>`;
+    a+=`<button class="btn" data-act="settings">設定</button>`;
+  }
+  return b+`<div class="bar">${a}<span class="sp"></span></div>`;
+}
+function legendHtml(){
+  return `<div class="legend"><span>早 B02</span><span>中 B03</span><span>夜 B04</span><span>日 B01</span><span><i style="background:var(--t-rest)"></i>休（H01 週六／H03 週日／H05 國定）</span><span><i style="background:#fff;position:relative"><b style="position:absolute;right:0;top:0;border-style:solid;border-width:0 6px 6px 0;border-color:transparent #e0701b transparent transparent"></b></i>與基礎班表不同（調整）</span><span><i style="outline:2px solid var(--danger);outline-offset:-2px"></i>違規</span><span><i style="background:#f3e39a"></i>調班別</span><span><i style="background:var(--leave)"></i>排休</span></div>`;
+}
+function bodyHtml(){
+  if(typeof schedLoading!=='undefined'&&schedLoading) return '<div class="banner">班表載入中…</div>';
+  const mo=curMonth(); if(!mo) return '<div class="banner">還沒有班表。班表由管理者從 Excel 匯出後，在「管理」匯入。'+((typeof schedErr!=='undefined'&&schedErr)?'（'+esc(schedErr)+'）':'')+'</div>';
+  const n=dim(mo.y,mo.m), hol=new Set(S.cfg.holidays), tg=targets(S.cfg,mo.y,mo.m);
+  // 全部組員的班表與排休互相可見（唯讀）；自己的那一列會標示
+  const sorted=sortedPeople(mo.people);
+  const iss=monthIssues(mo), bad=new Set(iss.map(x=>x.pid+':'+x.day)), q=S.q.trim();
+  const myLeave=(S.me&&S.leave[S.me]&&S.leave[S.me].dates&&S.leave[S.me].dates[mid(mo.y,mo.m)])||[];
+  let h='<thead><tr><th class="nm">姓名</th>';
+  for(let d=1;d<=n;d++){ const w=wday(mo.y,mo.m,d), isH=hol.has(dkey(mo.y,mo.m,d)); const lv=myLeave.includes(d); h+=`<th class="${lv?'lvh':isH?'ho':w===0||w===6?'we':''}">${d}<span>${'日一二三四五六'[w]}</span></th>`; }
+  h+='</tr></thead><tbody>';
+  const leaveSet=leaveKeys(mo.y,mo.m);
+  let key=null; const rowsHtml=[]; let lastIdx=-1;
+  sorted.forEach((p,idx)=>{
+    const k=p.tail?'tail':p.cat;
+    if(k!==key){ key=k; const cnt=sorted.filter(x=>(x.tail?'tail':x.cat)===k).length, bg=k==='tail'?'var(--g-tail)':`var(--g-${k})`;
+      rowsHtml.push(`<tr class="blk"><td colspan="${n+1}" style="background:${bg}"><div>${k==='tail'?'表尾':GNAME[k]}・${cnt} 人</div></td></tr>`); }
+    const r=mo.rows[p.id]||[], bs=mo.base[p.id]||[], mk=mo.marks[p.id]||0, bg=p.tail?'var(--g-tail)':`var(--g-${p.cat})`;
+    const nextK=sorted[idx+1]?(sorted[idx+1].tail?'tail':sorted[idx+1].cat):null;
+    const dim_=q&&!p.name.includes(q)?' dim':'';
+    let t=`<tr class="${nextK!==k?'last':''}${dim_}${p.id===S.me?' me':''}"><th class="nm mk${mk}" style="background:${bg}"><button data-act="person" data-p="${esc(p.id)}" title="${esc(p.name)}">${esc(p.name)}</button></th>`;
+    for(let d=1;d<=n;d++){
+      const s=r[d-1]||'B02W01', b=pb(s), a=pa(s), rest=a[0]==='H';
+      const cls=rest?'t-rest':b==='B01'?'t-day':b==='B02'?'t-early':b==='B03'?'t-mid':'t-night';
+      const flags=(bs[d-1]&&bs[d-1]!==s?' adj':'')+(bad.has(p.id+':'+d)?' bad':'')+(leaveSet.has(p.id+':'+d)?' lv':'')+(S.pick&&S.pick.p===p.id&&S.pick.d===d?' pick':'');
+      t+=`<td class="c ${cls}${flags}" data-p="${esc(p.id)}" data-d="${d}" title="${esc(p.name)} ${d} 日 ${s}">${rest?'休':BLABEL[b]||b}${rest?`<small>${a.slice(1)}</small>`:''}</td>`;
+    }
+    t+='</tr>';
+    rowsHtml.push(t);
+  });
+  h+=rowsHtml.join('')+'</tbody>';
+  const lb=S.canEdit?lookback(mo,S.cfg.limit):[];
+  const issHtml=iss.length?`<ul>${iss.map(x=>`<li><button data-act="goto" data-p="${esc(x.pid)}" data-d="${x.day}">${esc(x.name)}：${esc(x.msg)}</button></li>`).join('')}</ul>`:'<p class="ok">全部通過：連續上班不超過 6 天、相鄰上班日休息大於 12 小時。</p>';
+  const adjN=mo.people.reduce((s,p)=>s+(mo.rows[p.id]||[]).filter((x,i)=>(mo.base[p.id]||[])[i]!==x).length,0);
+  return legendHtml()+`<div class="wrap ${S.canEdit?'ed':''}"><table>${h}</table></div>
+  <section class="issues"><h2>檢查結果</h2>${issHtml}</section>`;
+}
+
+// ---------- 浮動視窗 ----------
+function openModal(html,onMount){ const e=$('#modal'); e.innerHTML=`<div class="ov" data-act="ovclose"><div class="dlg" role="dialog" aria-modal="true">${html}</div></div>`; S.modal=true; if(onMount) onMount(e); const f=e.querySelector('select,input,button.pri'); }
+function closeModal(){ $('#modal').innerHTML=''; S.modal=null; closePop(); }
+function closePop(){ const p=$('#pop'); if(p) p.innerHTML=''; S.pick=null; }
+const CODES=[['早 B02','B02W01'],['中 B03','B03W01'],['夜 B04','B04W01'],['日 B01','B01W01'],['休 H01 週六','B02H01'],['休 H03 週日','B02H03'],['休 H05 國定','B02H05']];
+function openPop(td){
+  const mo=curMonth(), p=mo.people.find(x=>x.id===td.dataset.p), d=+td.dataset.d; if(!p) return;
+  const base=(mo.base[p.id]||[])[d-1], cur=mo.rows[p.id][d-1], r=td.getBoundingClientRect();
+  S.pick={p:p.id,d}; render_keep();
+  const el=$('#pop'); const x=Math.min(r.left,innerWidth-226), y=Math.min(r.bottom+4,innerHeight-260);
+  el.innerHTML=`<div class="pop" style="left:${Math.max(8,x)}px;top:${Math.max(8,y)}px" role="menu"><div class="cap">${esc(p.name)}・${d} 日（目前 ${esc(cur)}）</div>${CODES.map(c=>`<button data-act="setcell" data-code="${c[1]}" ${c[1]===cur?'disabled':''}>${c[0]}</button>`).join('')}${base&&base!==cur?`<button data-act="setcell" data-code="${base}" style="grid-column:1/-1">還原成基礎班表（${esc(base)}）</button>`:''}<button data-act="popclose" style="grid-column:1/-1">取消</button></div>`;
+}
+function render_keep(){ render(); }
+function setCell(pid,d,code){
+  const mo=clone(curMonth()); mo.rows[pid][d-1]=code; mo.ts=Date.now(); delete mo.last; saveMonth(mo); closePop(); render();
+}
+
+// ---------- 人員視窗 ----------
+function personDlg(pid){
+  const mo=curMonth(), p=mo.people.find(x=>x.id===pid); if(!p) return;
+  const r=mo.rows[pid]||[], n=dim(mo.y,mo.m), st=stats(r), w0=wday(mo.y,mo.m,1), iss=monthIssues(mo).filter(x=>x.pid===pid);
+  let cal=['日','一','二','三','四','五','六'].map(x=>`<div class="h">${x}</div>`).join('')+'<div style="background:none"></div>'.repeat(w0);
+  for(let d=1;d<=n;d++){ const s=r[d-1],b=pb(s),a=pa(s),rest=a[0]==='H'; const bg=rest?'t-rest':b==='B01'?'t-day':b==='B02'?'t-early':b==='B03'?'t-mid':'t-night';
+    cal+=`<div style="background:${rest?'var(--t-rest)':'transparent'}"><b>${d}</b>${rest?'休':BLABEL[b]}${rest?`<b>${a}</b>`:`<b>${b}</b>`}</div>`; }
+  const gl=p.tail?'表尾（'+GNAME[p.cat]+'）':GNAME[p.cat];
+  openModal(`<h2>${esc(p.name)}・${monthLabel(mo)}</h2><div class="note">${esc(gl)}　休息日：H05 ${st.h5}、H03 ${st.h3}、H01 ${st.h1}</div><div class="cal">${cal}</div>
+  ${iss.length?`<h4>這個人的違規</h4><div class="list bad">${iss.map(x=>`<div>${esc(x.msg)}</div>`).join('')}</div>`:''}
+  <div class="acts"><button class="btn" data-act="close">關閉</button></div>`);
+}
+
+// ---------- 調換 ----------
+function swapDlg(){
+  const mo=curMonth(), rot=sortedPeople(mo.people).filter(p=>isRot(p.cat)), n=dim(mo.y,mo.m);
+  const opt=sel=>rot.map(p=>`<option value="${esc(p.id)}" ${p.id===sel?'selected':''}>${esc(p.name)}（${p.tail?'表尾 ':''}${GNAME[p.cat]}）</option>`).join('');
+  const days=sel=>Array.from({length:n},(_,i)=>`<option value="${i+1}" ${i+1===sel?'selected':''}>${i+1} 日</option>`).join('');
+  openModal(`<h2>調換輪班組員</h2><p class="note">只能調換輪班 A–D 的組員。日班或不分組的人要改類別，請到「設定」調整類別（下個月生效）。</p>
+  <div class="row"><label><input type="radio" name="mode" value="swap" checked>換班：只換指定日期的班別碼，組別不變</label></div>
+  <div class="row"><label><input type="radio" name="mode" value="group">調班別：從指定日起兩人互換班別碼、組別與位置，下月起依新組循環</label></div>
+  <div class="row"><select class="field" id="sa">${opt(rot[0]&&rot[0].id)}</select><span>與</span><select class="field" id="sb">${opt(rot[1]&&rot[1].id)}</select></div>
+  <div class="row"><span>從</span><select class="field" id="sd1">${days(1)}</select><span id="sto"><span>到</span> <select class="field" id="sd2">${days(1)}</select></span></div>
+  <div id="sprev"></div><div class="acts"><button class="btn" data-act="close">取消</button><button class="btn pri" data-act="doswap" id="sgo" disabled>套用</button></div>`,()=>{ swapPrev(); });
+}
+function swapVals(){ const g=id=>$('#'+id); const mode=document.querySelector('input[name=mode]:checked').value; return {mode,a:g('sa').value,b:g('sb').value,d1:+g('sd1').value,d2:+g('sd2').value}; }
+function swapPrev(){
+  const v=swapVals(), mo=curMonth(), el=$('#sprev'), go=$('#sgo'); $('#sto').style.display=v.mode==='group'?'none':'';
+  if(v.a===v.b){ el.innerHTML='<div class="list bad">請選兩位不同的人。</div>'; go.disabled=true; return; }
+  if(v.mode==='swap'&&v.d2<v.d1){ el.innerHTML='<div class="list bad">結束日不能早於開始日。</div>'; go.disabled=true; return; }
+  const r=doSwap(mo,S.cfg,v.mode,v.a,v.b,v.d1,v.d2), before=monthIssues(mo).filter(x=>x.pid===v.a||x.pid===v.b).map(x=>x.pid+x.msg);
+  const after=monthIssues(r.month).filter(x=>x.pid===v.a||x.pid===v.b), neu=after.filter(x=>!before.includes(x.pid+x.msg));
+  const A=mo.people.find(p=>p.id===v.a),B=mo.people.find(p=>p.id===v.b), n=dim(mo.y,mo.m), e=v.mode==='group'?n:v.d2;
+  const cnt=pid=>stats(r.month.rows[pid]), ca=cnt(v.a), cb=cnt(v.b), tg=targets(S.cfg,mo.y,mo.m), warn=[];
+  for(const [p,c] of [[A,ca],[B,cb]]){ if(c.h5!==tg.n05) warn.push(`${p.name} 的 H05 是 ${c.h5} 天（日班為 ${tg.n05}）`); if(c.h3!==tg.n03) warn.push(`${p.name} 的 H03 是 ${c.h3} 天（日班為 ${tg.n03}）`); }
+  el.innerHTML=`<h4>預覽：${esc(A.name)} 與 ${esc(B.name)}，${v.d1}–${e} 日互換${v.mode==='group'?'（含組別：'+GNAME[A.cat]+' ⇄ '+GNAME[B.cat]+'）':''}</h4>`+
+   (neu.length?`<div class="list bad"><b>調換後新增 ${neu.length} 項違規：</b>${neu.map(x=>`<div>${esc(x.name)}：${esc(x.msg)}</div>`).join('')}</div>`:'<div class="list"><span style="color:var(--ok)">沒有新增違規。</span></div>')+
+   (warn.length?`<div class="note" style="margin-top:6px">提醒：${warn.map(esc).join('；')}。需要的話套用後再點格子手動調整。</div>`:'');
+  go.disabled=false; go.textContent=neu.length?'仍要套用':'套用';
+}
+function doSwapApply(){
+  const v=swapVals(), r=doSwap(curMonth(),S.cfg,v.mode,v.a,v.b,v.d1,v.d2);
+  r.month.last=r.last; saveMonth(r.month);
+  if(v.mode==='group'){ S.cfg=normCfg(r.master); saveCfg(); }
+  closeModal(); render(); toast(v.mode==='group'?'已調班別，下月起依新組循環':'已換班');
+}
+function undoApply(){
+  const mo=curMonth(), u=undoSwap(mo); if(!u) return; saveMonth(u.month);
+  if(mo.last&&mo.last.type==='group'){ S.cfg=normCfg(u.master); saveCfg(); }
+  render(); toast('已復原');
+}
+
+// ---------- 產生下月 ----------
+function genDlg(){
+  const mo=curMonth(), tid=nextId(mo.y,mo.m), t=parseId(tid), exist=!!S.months[tid], lb=lookback(mo,S.cfg.limit), isLast=ids().indexOf(S.cur)===ids().length-1;
+  const lbHtml=lb.length?`<h4>回推檢查（最後 14 天與本人組別的循環差異）</h4><div class="list bad"><b>${lb.length} 人差異 ≥ ${S.cfg.limit} 天：</b>${lb.map(x=>`<div>${esc(x.name)}：${x.diff} 天不同</div>`).join('')}<div class="note">可能是換班太多或組別不對。下月仍會依各人目前組別的循環排。</div></div>`:`<h4>回推檢查</h4><div class="list"><span style="color:var(--ok)">全部人員最後 14 天都符合各自組別的循環。</span></div>`;
+  openModal(`<h2>產生 ${t.y-1911} 年 ${t.m} 月班表</h2><p class="note">依「${monthLabel(mo)}」最後 6 天銜接，循環順序永遠連續，跨月不重新對相位。調班別的人下月起依新組排。</p>${lbHtml}
+  ${exist?`<div class="banner err" style="margin-top:10px">${t.y-1911} 年 ${t.m} 月已經有班表，產生會覆蓋掉（包含手動調整）。</div>`:''}
+  ${isLast?'':'<div class="note" style="margin-top:6px">目前看的不是最新的月份。</div>'}
+  <div class="acts"><button class="btn" data-act="close">取消</button><button class="btn pri" data-act="dogen">${lb.length?'仍要產生':'產生'}</button></div>`);
+}
+function genApply(){
+  const mo=curMonth(), tid=nextId(mo.y,mo.m), t=parseId(tid), nm=newMonth(S.cfg,t.y,t.m,mo), iss=monthIssues(nm);
+  saveMonth(nm); S.cur=tid; closeModal(); render();
+  const tg=targets(S.cfg,t.y,t.m); toast(`已產生 ${t.y-1911} 年 ${t.m} 月（${iss.length?iss.length+' 項違規，請看檢查結果':'沒有違規'}；日班 H05/H03 = ${tg.n05}/${tg.n03}）`);
+}
+
+// ---------- 設定 ----------
+function settingsDlg(){
+  const c=S.cfg; const catOpt=sel=>GROUPS.map(g=>`<option value="${g}" ${g===sel?'selected':''}>${GNAME[g]}</option>`).join('');
+  const rows=c.people.map((p,i)=>`<tr data-i="${i}"><td><input type="text" class="field pn" value="${esc(p.name)}" aria-label="姓名"></td><td><select class="field pc" aria-label="類別">${catOpt(p.cat)}</select></td><td><label><input type="checkbox" class="pt_" ${p.tail?'checked':''}> 表尾</label></td><td><input type="tel" class="field pe" inputmode="numeric" pattern="[0-9]*" placeholder="${p.hash?'已設定':'工號'}" aria-label="工號" style="width:90px"></td><td><button class="btn dng" data-act="delp" type="button" aria-label="刪除">刪</button></td></tr>`).join('');
+  openModal(`<h2>設定</h2><p class="note">這裡改的是「主名單」，下次產生下月班表時套用；目前這個月不會變。調班別會自動同步主名單。</p>
+  <h4>人員（名單順序＝同組內的順序）</h4><div class="list" style="max-height:260px"><table class="pt"><thead><tr><th>姓名</th><th>類別</th><th>位置</th><th>工號（不改請留空）</th><th></th></tr></thead><tbody id="ptb">${rows}</tbody></table></div>
+  <div class="row"><button class="btn" data-act="addp" type="button">新增一人</button></div>
+  <h4>貼上人員名單取代上面的人員（每行：姓名，類別；類別填 A、B、C、D、日1、日2，後面加「,尾」表示放在表尾）</h4><textarea class="field" id="imp" rows="4" style="width:100%" placeholder="王小明,A&#10;李小華,日2&#10;陳大文,B,尾"></textarea><div class="row"><button class="btn" data-act="doimp" type="button">用貼上的名單取代</button></div>
+  <h4>國定假日（含補假，每行一天，格式 2027-02-04；只填週一到週五，週六日本來就休）</h4><textarea class="field" id="hol" rows="6" style="width:100%">${esc(c.holidays.join('\n'))}</textarea>
+  <div class="note">來源：人事行政總處 116 年（2027）辦公日曆。每年 6 月底前公告次年日曆後，把新日期加進來。</div>
+  <h4>規則</h4><div class="row"><label>回推檢查差異上限 <input type="number" class="field" id="lim" min="1" max="14" value="${c.limit}" style="width:70px"> 天（最後 14 天與循環不同的天數達到就先提醒）</label></div>
+  <div class="note">循環：${CYCLE.join('')}（12 天）・起算日 2026/12/01・A/B/C/D 在起算日走到第 1/4/7/10 天。這些寫在程式裡，要改請告訴我。</div>
+  <div class="acts"><button class="btn" data-act="close">取消</button><button class="btn pri" data-act="savecfg">儲存設定</button></div>`);
+}
+async function readPeople(){
+  const out=[], rows=[...document.querySelectorAll('#ptb tr')];
+  for(let i=0;i<rows.length;i++){
+    const tr=rows[i], old=S.cfg.people[+tr.dataset.i]||null, name=tr.querySelector('.pn').value.trim();
+    if(!name) continue;
+    const emp=((tr.querySelector('.pe')||{}).value||'').trim();
+    let hash=old&&old.hash?old.hash:'';
+    if(emp) hash=await empHash(emp);
+    out.push({id:old?old.id:'p'+Date.now().toString(36)+i,name,cat:tr.querySelector('.pc').value,tail:tr.querySelector('.pt_').checked,hash});
+  }
+  return out;
+}
+async function saveSettings(){
+  const people=await readPeople(), seen=new Set();
+  for(const p of people){ if(seen.has(p.name)){ toast('有重複的姓名：'+p.name); return; } seen.add(p.name); }
+  const hol=$('#hol').value.split(/\s+/).filter(Boolean), badH=hol.filter(x=>!/^\d{4}-\d{2}-\d{2}$/.test(x));
+  if(badH.length){ toast('假日格式不對：'+badH[0]); return; }
+  S.cfg={people,holidays:[...new Set(hol)].sort(),limit:Math.max(1,Math.min(14,+$('#lim').value||4))}; saveCfg(); closeModal(); render(); toast('已儲存設定');
+}
+function importPeople(){
+  const lines=$('#imp').value.split(/\n/).map(s=>s.trim()).filter(Boolean), out=[], badL=[];
+  lines.forEach((l,i)=>{ const f=l.split(/[,，\t]/).map(s=>s.trim()); const cat=(f[1]||'').replace(/班/,'').toUpperCase().replace(/^日班?B?0?1$/,'日1').replace(/^日班?B?0?2$/,'日2');
+    if(!f[0]||!GROUPS.includes(cat)){ badL.push(i+1); return; } out.push({id:'p'+Date.now().toString(36)+i,name:f[0],cat,tail:/^(尾|表尾)$/.test(f[2]||''),hash:(S.cfg.people.find(x=>x.name===f[0])||{}).hash||''}); });
+  if(badL.length){ toast('第 '+badL.join('、')+' 行格式不對（類別要是 A、B、C、D、日1、日2）'); return; }
+  if(!out.length){ toast('沒有可匯入的行'); return; }
+  S.cfg.people=out; settingsDlg(); toast('已換成貼上的 '+out.length+' 人，記得按「儲存設定」');
+}
+
+
+// ---------- 排休（每人一份文件，寫入者只能是自己的帳號） ----------
+function leaveKeys(y,m){
+  const set=new Set(), mm=mid(y,m);
+  for(const uid of Object.keys(S.leave)){ const d=S.leave[uid]; if(!d||!d.personId||!d.dates) continue;
+    for(const day of (d.dates[mm]||[])) set.add(d.personId+':'+day); }
+  return set;
+}
+const EMP_SALT='';
+function empNorm(e){ let v=String(e||'').trim().toLowerCase(); if(/^\d+$/.test(v)) v='c'+v; return v; }
+async function empHash(e){ const d=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(EMP_SALT+':'+empNorm(e))); return [...new Uint8Array(d)].map(x=>x.toString(16).padStart(2,'0')).join(''); }
+function boundPerson(){ const mine=S.leave[S.uid]||{}; const id=mine.personId||S.me; return id?S.cfg.people.find(x=>x.id===id)||null:null; }
+function leaveDlg(){
+  if(!S.db){ toast('目前沒有連到資料庫，無法排休'); return; }
+  if(!S.uid){ toast('請用自己的帳號開啟頁面才能排休'); return; }
+  const mo=curMonth(), me=boundPerson();
+  if(!me){
+    openModal(`<h2>排休・核定身分</h2><p class="note">請輸入你的工號。核定後就可以自己排休日期。</p>
+    <div class="row"><input class="field" id="lvemp" type="tel" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="工號（只要數字）" style="width:200px"></div>
+    <div class="acts"><button class="btn" data-act="close">取消</button><button class="btn pri" data-act="lvverify">核定</button></div>`);
+    return;
+  }
+  const mine=S.leave[S.uid]||{}, n=dim(mo.y,mo.m), cur=((mine.dates||{})[mid(mo.y,mo.m)])||[];
+  let cal=['日','一','二','三','四','五','六'].map(x=>`<div class="h">${x}</div>`).join('')+'<div style="background:none"></div>'.repeat(wday(mo.y,mo.m,1));
+  for(let d=1;d<=n;d++){ const on=cur.includes(d); cal+=`<div><button type="button" class="dayb${on?' on':''}" data-act="lvday" data-d="${d}" aria-pressed="${on}">${d}<small>${'日一二三四五六'[wday(mo.y,mo.m,d)]}</small></button></div>`; }
+  openModal(`<h2>我的排休・${monthLabel(mo)}</h2><p class="note">${esc(me.name)}，點日期可以切換排休。班表上會用紅點標示，不影響自動排班。</p>
+  <div class="cal" id="lvcal">${cal}</div>
+  <div class="acts"><button class="btn" data-act="close">取消</button><button class="btn pri" data-act="lvsave">儲存排休</button></div>`);
+}
+async function leaveVerify(){
+  const v=(($('#lvemp')||{}).value||'').trim();
+  if(!v){ toast('請輸入工號'); return; }
+  let h; try{ h=await empHash(v); }catch(err){ toast('這個瀏覽器無法比對工號'); return; }
+  const p=S.cfg.people.find(x=>x.hash&&x.hash===h);
+  if(!p){ toast('工號不正確，或不在名單上'); return; }
+  const prev=clone(S.leave[S.uid]||{}), doc={personId:p.id,name:p.name,dates:prev.dates||{},updated:Date.now()};
+  try{ await S.db.doc('leave/'+S.uid).set(doc); S.leave[S.uid]=doc; toast('已核定：'+p.name); render(); leaveDlg(); }
+  catch(err){ toast('儲存失敗：'+((err&&err.code)||(err&&err.message)||err)); }
+}
+async function leaveSave(){
+  const mo=curMonth(), me=boundPerson();
+  if(!me){ toast('請先核定工號'); return; }
+  const days=[...document.querySelectorAll('#lvcal .dayb.on')].map(b=>+b.dataset.d).sort((x,y)=>x-y);
+  const prev=clone(S.leave[S.uid]||{}), dates=prev.dates||{}, key=mid(mo.y,mo.m);
+  if(days.length) dates[key]=days; else delete dates[key];
+  const doc={personId:me.id,name:me.name,dates,updated:Date.now()};
+  try{ await S.db.doc('leave/'+S.uid).set(doc); S.leave[S.uid]=doc; closeModal(); render(); toast('已儲存排休（'+me.name+'，'+days.length+' 天）'); }
+  catch(e){ toast('儲存失敗：'+((e&&e.code)||(e&&e.message)||e)); }
+}
+function leaveToggle(btn){ const on=!btn.classList.contains('on'); btn.classList.toggle('on',on); btn.setAttribute('aria-pressed',on); }
+
+// ---------- 事件 ----------
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-act],td.c'); if(!t){ if(!e.target.closest('.pop')) closePop(); return; }
+  if(t.matches('td.c')){ if(S.canEdit&&!S.modal) openPop(t); return; }
+  const act=t.dataset.act;
+  if(act==='ovclose'){ if(e.target===t) closeModal(); return; }
+  if(act==='close') return closeModal();
+  if(act==='popclose'){ closePop(); render(); return; }
+  if(act==='setcell'){ const p=S.pick; setCell(p.p,p.d,t.dataset.code); return; }
+  if(act==='prev'||act==='next'){ const l=ids(), i=l.indexOf(S.cur)+(act==='next'?1:-1); if(l[i]){ S.cur=l[i]; render(); } return; }
+  if(act==='person') return personDlg(t.dataset.p);
+  if(act==='goto'){ const c=document.querySelector(`td.c[data-p="${CSS.escape(t.dataset.p)}"][data-d="${t.dataset.d}"]`); if(c) c.scrollIntoView({block:'center',inline:'center'}); return; }
+  if(act==='seed') return seedDb();
+  if(act==='logout'){ gateClear(); S.me=null; S.adm=false; render(); gateShow(); return; }
+  if(act==='exportcsv'){ if(typeof exportLeaveCsv==='function') exportLeaveCsv(); return; }
+  if(act==='importcsv'){ if(typeof importLeaveCsvPick==='function') importLeaveCsvPick(); return; }
+  if(act==='admsched'){ if(typeof admSched==='function') admSched(); return; }
+  if(act==='importsched'){ if(typeof importSchedPick==='function') importSchedPick(); return; }
+  if(act==='admlogin'){ if(typeof admLogin==='function') admLogin(); return; }
+  if(act==='admverify'){ if(typeof admVerify==='function') admVerify(); return; }
+  if(act==='admimport'){ if(typeof admImport==='function') admImport(); return; }
+  if(act==='leave') return leaveDlg(); if(act==='lvsave') return leaveSave(); if(act==='lvverify') return leaveVerify(); if(act==='lvday') return leaveToggle(t);
+  if(act==='gen') return genDlg(); if(act==='dogen') return genApply();
+  if(act==='swap') return swapDlg(); if(act==='doswap') return doSwapApply(); if(act==='undo') return undoApply();
+  if(act==='settings') return settingsDlg(); if(act==='savecfg') return saveSettings();
+  if(act==='addp'){ const tb=$('#ptb'); const i=tb.children.length; const tr=document.createElement('tr'); tr.dataset.i='new'+i; tr.innerHTML=`<td><input type="text" class="field pn" value="" aria-label="姓名"></td><td><select class="field pc">${GROUPS.map(g=>`<option value="${g}">${GNAME[g]}</option>`).join('')}</select></td><td><label><input type="checkbox" class="pt_"> 表尾</label></td><td><input type="tel" class="field pe" inputmode="numeric" pattern="[0-9]*" placeholder="工號" aria-label="工號" style="width:90px"></td><td><button class="btn dng" data-act="delp" type="button">刪</button></td>`; tb.appendChild(tr); tr.querySelector('input').focus(); return; }
+  if(act==='delp'){ t.closest('tr').remove(); return; }
+  if(act==='doimp') return importPeople();
+});
+document.addEventListener('input',e=>{
+  if(e.target.id==='q'){ S.q=e.target.value; const pos=e.target.selectionStart; render(); const q=$('#q'); q.focus(); q.setSelectionRange(pos,pos); }
+});
+document.addEventListener('change',e=>{ if(e.target.closest('#sprev,.dlg')&&S.modal&&$('#sgo')&&e.target.closest('.dlg')&&(e.target.matches('#sa,#sb,#sd1,#sd2,input[name=mode]'))) swapPrev(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ if(S.modal) closeModal(); else { closePop(); render(); } } });
+
+// ---------- 進入關卡：先輸入自己的工號 ----------
+function gateSaved(){ try{ return sessionStorage.getItem('shift_me')||null; }catch(e){ return null; } }
+function gateSetUnlocked(id){ try{ sessionStorage.setItem('shift_me',id); }catch(e){} }
+function gateClear(){ try{ sessionStorage.removeItem('shift_me'); }catch(e){} }
+function gateShowUI(){
+  if(document.querySelector('#gate')) return;
+  const g=document.createElement('div'); g.id='gate'; g.className='gate';
+  g.innerHTML='<form class="gate-box" id="gateform" autocomplete="off"><h1>輪班便當</h1><p class="note">請輸入你的工號，才能看到班表</p><input class="field" id="gatein" type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="工號（只要數字）" aria-label="工號" style="width:100%;text-align:center;font-size:18px;letter-spacing:.15em"><div class="acts"><button class="btn pri" type="submit">進入</button></div><p class="gate-err" id="gateerr" role="alert"></p></form>';
+  document.body.appendChild(g);
+  const f=g.querySelector('#gateform');
+  f.addEventListener('submit',async e=>{
+    e.preventDefault();
+    const err=g.querySelector('#gateerr'), inp=g.querySelector('#gatein'), v=(inp.value||'').trim();
+    if(!/^c?\d+$/i.test(v)){ err.textContent='請只輸入數字工號'; return; }
+    if(!S.cfgReady){ err.textContent='名單載入中，請稍後再試'; return; }
+    let h=''; try{ h=await empHash(v); }catch(x){ err.textContent='這個瀏覽器無法驗證工號'; return; }
+    const p=S.cfg.people.find(x=>x.hash&&x.hash===h);
+    if(!p){ err.textContent='工號不正確，或不在名單上'; inp.select(); return; }
+    S.me=p.id; gateSetUnlocked(p.id); g.remove(); render();
+  });
+  setTimeout(()=>{ const i=g.querySelector('#gatein'); if(i) i.focus(); },50);
+}
+function meName(){ const p=S.me&&S.cfg.people.find(x=>x.id===S.me); return p?p.name:''; }
+
+// ---------- 啟動：先顯示範例，連上資料庫後換成真資料 ----------
+(async function start(){
+  S.me=gateSaved();
+  if(!S.me) gateShow();
+  boot(); render();
+  const timer=setTimeout(()=>{ S.slow=true; render(); },10000);
+  try{
+    const claude=window.claude; if(!claude||!claude.use){ clearTimeout(timer); return; }
+    const [db,user]=await Promise.all([claude.use('db'),claude.use('user')]); S.db=db; S.user=user;
+    if(!db){ clearTimeout(timer); S.dbOk=false; render(); return; }
+    S.dbOk=true; S.canEdit=user?(await user.canEdit()):false; try{ S.uid=user?await user.id():null; }catch(e){ S.uid=null; } render();
+    db.collection('leave').onSnapshot(q=>{ const L={}; q.docs.forEach(d=>{ if(d.exists) L[d.id]=d.data(); }); S.leave=L; render(); },e=>{});
+    let gotC=false,gotM=false; const done=()=>{ if(gotC&&gotM){ clearTimeout(timer); S.slow=false; } };
+    db.doc('config/main').onSnapshot(s=>{ gotC=true; if(s.exists){ S.cfg=normCfg(s.data()); S.cfgInDb=true; } S.cfgReady=true; if(S.me&&!S.cfg.people.some(x=>x.id===S.me)){ gateClear(); S.me=null; gateShow(); } if(S.demo){ const d=parseId(S.cur||mid(2026,11)); S.months={[mid(d.y,d.m)]:newMonth(S.cfg,d.y,d.m,null)}; S.cur=mid(d.y,d.m); } done(); render(); },e=>{ gotC=true; S.cfgReady=true; done(); });
+    db.collection('months').onSnapshot(q=>{
+      gotM=true; const m={}; q.docs.forEach(d=>{ if(d.exists) m[d.id]=d.data(); });
+      if(Object.keys(m).length){ S.months=m; S.demo=false; if(!m[S.cur]) S.cur=Object.keys(m).sort()[0]; } else if(!S.demo){ S.months={}; }
+      done(); render();
+    },e=>{ gotM=true; done(); });
+  }catch(err){ clearTimeout(timer); }
+})();
+
+const API="https://shift-leave.davanr.workers.dev";
+// ---- 匯入排休 CSV（點選檔案 → 輸入管理密碼 → 寫入後端；密碼不存在網頁裡）----
+function importLeaveCsvPick(){
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='.csv,text/csv'; inp.style.display='none';
+  inp.onchange=()=>{ const f=inp.files&&inp.files[0]; inp.remove(); if(f) importLeaveCsvFile(f); };
+  document.body.appendChild(inp);   // 放進頁面再點擊：部分手機瀏覽器對未加入頁面的檔案欄位不會觸發 change
+  inp.click();
+}
+async function importLeaveCsvFile(f){
+  const mo=curMonth(); if(!mo){ toast('請先選月份'); return; }
+  const mm=mid(mo.y,mo.m);
+  // 先以 UTF-8 解碼；若含非法位元組（例如被 Excel 另存成 Big5），改用 Big5
+  const buf=await f.arrayBuffer(); let text;
+  try{ text=new TextDecoder('utf-8',{fatal:true}).decode(buf); }catch(e){ text=new TextDecoder('big5').decode(buf); }
+  if(text.charCodeAt(0)===0xFEFF) text=text.slice(1);
+  const lines=text.replace(/\r/g,'').split('\n');
+  const days={}; const bad=[]; let cnt=0;
+  for(let i=1;i<lines.length;i++){
+    const L=lines[i].trim(); if(!L) continue;
+    const parts=L.split(/[,\t]/).map(s=>(s||'').trim());   // 逗號或 Tab 分隔
+    const m=/^員(\d{2})$/.exec(parts[0]||'');
+    const dm=/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/.exec(parts[1]||'');   // 2026-11-03 或 2026/11/3
+    const date=dm?dm[1]+'-'+dm[2].padStart(2,'0')+'-'+dm[3].padStart(2,'0'):'';
+    if(!m || +m[1]<1 || +m[1]>S.cfg.people.length || !dm){ bad.push(L); continue; }
+    if(date.slice(0,7)!==mm) continue;
+    const d=+date.slice(8,10);
+    if(d<1 || d>dim(mo.y,mo.m)){ bad.push(L); continue; }
+    const pid='p'+m[1];
+    (days[pid]=days[pid]||[]).push(d); cnt++;
+  }
+  window.__pendingImport={month:mm,days};
+  openModal(`<h2>匯入排休・${monthLabel(mo)}</h2>
+  <p class="note">檔案中本月共 ${cnt} 筆排休${bad.length?'，另有 '+bad.length+' 行格式不對會略過':''}。</p>
+  <p class="note">CSV 會取代本月全部人的排休：沒有出現在檔案裡的人，本月排休會清空。</p>
+  <div class="row"><input class="field" id="admpw" type="password" autocomplete="off" placeholder="管理密碼" style="width:220px"></div>
+  <p class="note" id="admstat" role="status" style="min-height:1.5em;font-weight:700"></p>
+  <div class="acts"><button class="btn" data-act="close">取消</button><button class="btn pri" id="admbtn" data-act="admimport">寫入後端</button></div>`);
+}
+async function admImport(){
+  const p=window.__pendingImport; if(!p){ toast('請重新選擇檔案'); return; }
+  const stat=$('#admstat'), btn=$('#admbtn');
+  const say=(t,bad)=>{ if(stat){ stat.textContent=t; stat.style.color=bad?'#e5534b':''; } };
+  const pw=(($('#admpw')||{}).value)||'';
+  if(!pw){ say('請先輸入管理密碼',true); return; }
+  if(btn){ btn.disabled=true; btn.textContent='寫入中…'; }
+  say('寫入中，請稍候…');
+  const fail=t=>{ say(t,true); if(btn){ btn.disabled=false; btn.textContent='再試一次'; } };
+  let r, j={};
+  try{
+    r=await fetch(API+'/api/admin/leave',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({pw,month:p.month,days:p.days})});
+    j=await r.json().catch(()=>({}));
+  }catch(e){ fail('連不到伺服器，沒有寫入。請檢查網路後再試一次。'); return; }
+  if(!r.ok){ fail('寫入失敗（'+r.status+'）：'+(j.error||'未知錯誤')); return; }
+  window.__pendingImport=null;
+  let n=0; for(const k of Object.keys(p.days)) n+=p.days[k].length;
+  let synced=true;
+  try{
+    const g=await (await fetch(API+'/api/leave')).json();
+    const L={}; for(const pid of Object.keys(g.leave||{})) L[pid]={personId:pid,dates:g.leave[pid]};
+    S.leave=L;
+  }catch(e){ synced=false; }
+  render();
+  openModal(`<h2>匯入完成</h2>
+  <p class="note">已寫入後端：${p.month} 共 ${n} 筆排休、${Object.keys(p.days).length} 人；與原本不同的有 ${j.changed} 人。</p>
+  ${synced?'':'<p class="note" style="color:#e5534b;font-weight:700">寫入成功，但重新讀取失敗；請重新整理頁面確認。</p>'}
+  <div class="acts"><button class="btn pri" data-act="close">確定</button></div>`);
+}
+// ---- 管理入口：輸入管理密碼，由後端驗證（不寫入資料）後才顯示匯出／匯入按鈕 ----
+function admLogin(){
+  openModal(`<h2>管理</h2>
+  <p class="note">輸入管理密碼後，才會顯示「匯出排休 CSV」與「匯入排休 CSV」。密碼不會存在網頁裡，重新整理後需再輸入。</p>
+  <div class="row"><input class="field" id="admpw0" type="password" autocomplete="off" placeholder="管理密碼" style="width:220px"></div>
+  <p class="note" id="admstat0" role="status" style="min-height:1.5em;font-weight:700"></p>
+  <div class="acts"><button class="btn" data-act="close">取消</button><button class="btn pri" id="admbtn0" data-act="admverify">確認</button></div>`);
+  setTimeout(()=>{ const e=$('#admpw0'); if(e) e.focus(); },50);
+}
+async function admVerify(){
+  const stat=$('#admstat0'), btn=$('#admbtn0'), pw=(($('#admpw0')||{}).value)||'';
+  const say=(t,bad)=>{ if(stat){ stat.textContent=t; stat.style.color=bad?'#e5534b':''; } };
+  if(!pw){ say('請先輸入管理密碼',true); return; }
+  if(btn){ btn.disabled=true; btn.textContent='驗證中…'; }
+  const fail=t=>{ say(t,true); if(btn){ btn.disabled=false; btn.textContent='確認'; } };
+  let r,j={};
+  try{
+    r=await fetch(API+'/api/admin/leave',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({pw,verify:true})});
+    j=await r.json().catch(()=>({}));
+  }catch(e){ fail('連不到伺服器，請稍後再試'); return; }
+  if(r.ok && j.verified===true){ S.adm=true; closeModal(); render(); toast('已通過驗證，匯出／匯入按鈕已顯示'); return; }
+  if(r.status===400) fail('後端還不支援驗證，請先更新 Cloudflare Worker（含管理驗證的新版 worker.js）');
+  else fail((j.error||'驗證失敗')+'（'+r.status+'）');
+}
+// ---- 匯入班表 CSV（Excel「匯出班表」產生；欄位：代號,日期,班別,姓名；管理密碼由後端驗證）----
+const SCHED_CODE=/^B0[1-4](W01|H01|H03|H05)$/;
+function importSchedPick(){
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='.csv,text/csv'; inp.style.display='none';
+  inp.onchange=()=>{ const f=inp.files&&inp.files[0]; inp.remove(); if(f) importSchedFile(f); };
+  document.body.appendChild(inp);   // 放進頁面再點擊：部分手機瀏覽器對未加入頁面的檔案欄位不會觸發 change
+  inp.click();
+}
+async function importSchedFile(f){ try{ await importSchedFile0(f); }catch(e){ console.error('importSched',e); toast('讀取班表檔失敗：'+((e&&e.message)||e)); } }
+async function importSchedFile0(f){
+  const buf=await f.arrayBuffer(); let text;
+  try{ text=new TextDecoder('utf-8',{fatal:true}).decode(buf); }catch(e){ text=new TextDecoder('big5').decode(buf); }
+  if(text.charCodeAt(0)===0xFEFF) text=text.slice(1);
+  const lines=text.replace(/\r/g,'').split('\n'), months={}, bad=[];
+  for(let i=0;i<lines.length;i++){
+    const L=lines[i].trim(); if(!L) continue;
+    const p=L.split(/[,\t]/).map(s=>(s||'').trim());
+    const mc=/^員(\d{2})$/.exec(p[0]||'');
+    if(!mc){ if(i>0) bad.push(L); continue; }                       // 第一行視為標題
+    const dm=/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/.exec(p[1]||''), code=(p[2]||'').toUpperCase();
+    if(!dm||!SCHED_CODE.test(code)){ bad.push(L); continue; }
+    const y=+dm[1], m=+dm[2], d=+dm[3], n=new Date(Date.UTC(y,m,0)).getUTCDate();
+    if(m<1||m>12||d<1||d>n){ bad.push(L); continue; }
+    const mm=y+'-'+String(m).padStart(2,'0'), pid='p'+mc[1];
+    const o=months[mm]||(months[mm]={n,rows:{},names:{}});
+    const r=o.rows[pid]||(o.rows[pid]=new Array(n).fill(null)); r[d-1]=code;
+    if(p[3]) o.names[pid]=p[3];
+  }
+  const probs=[], summary=[]; let blockNames=0; const sample=[];
+  for(const mm of Object.keys(months).sort()){
+    const o=months[mm], pids=Object.keys(o.rows).sort(); let miss=0;
+    for(const pid of pids) miss+=o.rows[pid].filter(x=>!x).length;
+    if(miss) probs.push(mm+' 有 '+miss+' 格缺資料（每人每天都要有班別）');
+    summary.push(mm+'：'+pids.length+' 人 × '+o.n+' 日 = '+(pids.length*o.n)+' 格');
+    const missing=S.cfg.people.map(x=>x.id).filter(id=>!o.rows[id]);
+    if(missing.length) probs.push(mm+' 缺少 '+missing.length+' 位：'+missing.slice(0,8).map(id=>'員'+id.slice(1)).join('、')+(missing.length>8?'…':'')+'（每位組員都要有整月班表）');
+    for(const pid of pids){ const cp=S.cfg.people.find(x=>x.id===pid);
+      if(!cp){ probs.push('員'+pid.slice(1)+' 不在網頁名單內（需要先更新 Cloudflare 的工號對照）'); continue; }
+      const nm=o.names[pid]; if(nm&&nm!==cp.name){ blockNames++; if(sample.length<5) sample.push('員'+pid.slice(1)+'：網頁「'+cp.name+'」≠ 檔案「'+nm+'」'); } }
+  }
+  if(!Object.keys(months).length) probs.push('檔案裡沒有可用的班表資料');
+  if(blockNames) probs.push('有 '+blockNames+' 位的姓名與網頁名單不符，代號順序可能不一致：'+sample.join('；'));
+  window.__pendingSched=probs.length?null:months;
+  openModal(`<h2>匯入班表</h2>
+  <p class="note">${summary.map(esc).join('<br>')||'—'}${bad.length?'<br>另有 '+bad.length+' 行格式不對會略過':''}</p>
+  ${probs.length?'<p class="note" style="color:#e5534b;font-weight:700">'+probs.map(esc).join('<br>')+'<br>請先修正再匯入，目前不能寫入。</p>':'<p class="note">匯入會取代檔案裡出現的月份（整月班表）。</p><div class="row"><input class="field" id="admpw2" type="password" autocomplete="off" placeholder="管理密碼" style="width:220px"></div>'}
+  <p class="note" id="admstat2" role="status" style="min-height:1.5em;font-weight:700"></p>
+  <div class="acts"><button class="btn" data-act="close">${probs.length?'關閉':'取消'}</button>${probs.length?'':'<button class="btn pri" id="admbtn2" data-act="admsched">寫入後端</button>'}</div>`);
+}
+async function admSched(){
+  const months=window.__pendingSched; if(!months){ toast('請重新選擇檔案'); return; }
+  const stat=$('#admstat2'), btn=$('#admbtn2'), pw=(($('#admpw2')||{}).value)||'';
+  const say=(t,bad)=>{ if(stat){ stat.textContent=t; stat.style.color=bad?'#e5534b':''; } };
+  if(!pw){ say('請先輸入管理密碼',true); return; }
+  if(btn){ btn.disabled=true; btn.textContent='寫入中…'; }
+  const fail=t=>{ say(t,true); if(btn){ btn.disabled=false; btn.textContent='再試一次'; } };
+  const done=[];
+  for(const mm of Object.keys(months).sort()){
+    const o=months[mm]; say('寫入 '+mm+' …');
+    let r,j={};
+    try{
+      r=await fetch(SCHED_API+'/api/admin/schedule',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({pw,month:mm,rows:o.rows,names:o.names})});
+      j=await r.json().catch(()=>({}));
+    }catch(e){ fail('連不到伺服器；'+(done.length?'已寫入：'+done.join('、')+'；':'沒有寫入；')+'請再試一次'); return; }
+    if(!r.ok){ fail((done.length?'已寫入：'+done.join('、')+'；':'')+mm+' 寫入失敗（'+r.status+'）：'+(r.status===404?'後端還不支援班表，請先更新 Cloudflare Worker':(j.error||'未知錯誤'))); return; }
+    done.push(mm);
+  }
+  window.__pendingSched=null;
+  let synced=true;
+  try{ const ms=await loadSchedules(S.cfg); S.months=ms; S.demo=false; if(!ms[S.cur]) S.cur=Object.keys(ms).sort()[0]||null; }catch(e){ synced=false; }
+  render();
+  openModal(`<h2>匯入班表完成</h2>
+  <p class="note">已寫入後端：${done.map(esc).join('、')}</p>
+  ${synced?'':'<p class="note" style="color:#e5534b;font-weight:700">寫入成功，但重新讀取失敗；請重新整理頁面確認。</p>'}
+  <div class="acts"><button class="btn pri" data-act="close">確定</button></div>`);
+}
+// ---- 匯出排休 CSV（代號,日期；日期 yyyy-mm-dd；UTF-8 附 BOM）----
+function exportLeaveCsv(){
+  const rows=['代號,日期'];
+  const codeOf=pid=>{ const i=S.cfg.people.findIndex(x=>x.id===pid); return i>=0?'員'+String(i+1).padStart(2,'0'):null; };
+  const pids=Object.keys(S.leave).sort();
+  for(const pid of pids){
+    const code=codeOf(pid); if(!code) continue;
+    const months=(S.leave[pid]&&S.leave[pid].dates)||{};
+    for(const mm of Object.keys(months).sort()){
+      for(const d of [...months[mm]].sort((a,b)=>a-b)) rows.push(code+','+mm+'-'+String(d).padStart(2,'0'));
+    }
+  }
+  const blob=new Blob(['\uFEFF'+rows.join('\r\n')+'\r\n'],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a');
+  a.href=url; a.download='排休_'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+  toast('已匯出 '+(rows.length-1)+' 筆排休');
+}
+// ---- 排休（後端版）----
+function leaveDlg(){
+  if(!S.me){ toast('請先輸入工號'); return; }
+  const mo=curMonth(); if(!mo) return;
+  const n=dim(mo.y,mo.m), mm=mid(mo.y,mo.m), cur=(((S.leave[S.me]||{}).dates||{})[mm])||[];
+  let cal=['日','一','二','三','四','五','六'].map(x=>`<div class="h">${x}</div>`).join('')+'<div style="background:none"></div>'.repeat(wday(mo.y,mo.m,1));
+  for(let d=1;d<=n;d++){ const on=cur.includes(d); cal+=`<div><button type="button" class="dayb${on?' on':''}" data-act="lvday" data-d="${d}" aria-pressed="${on}">${d}<small>${'日一二三四五六'[wday(mo.y,mo.m,d)]}</small></button></div>`; }
+  const me=S.cfg.people.find(p=>p.id===S.me);
+  openModal(`<h2>我的排休・${monthLabel(mo)}</h2><p class="note">${esc(me?me.name:'')}，點日期切換排休。班表上會用紅點標示，不影響自動排班。</p><div class="cal" id="lvcal">${cal}</div><div class="acts"><button class="btn" data-act="close">取消</button><button class="btn pri" data-act="lvsave">儲存排休</button></div>`);
+}
+async function leaveSave(){
+  const mo=curMonth(); if(!mo||!S.me) return;
+  const emp=sessionStorage.getItem('shift_emp')||'';
+  const days=[...document.querySelectorAll('#lvcal .dayb.on')].map(b=>+b.dataset.d).sort((x,y)=>x-y);
+  try{
+    const r=await fetch(API+'/api/leave',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({emp,month:mid(mo.y,mo.m),days})});
+    const j=await r.json();
+    if(!r.ok){ toast(j.error||'儲存失敗'); return; }
+    S.leave[S.me]={personId:S.me,dates:j.months};
+    closeModal(); render(); toast('已儲存排休（'+days.length+' 天）');
+  }catch(e){ toast('連不到伺服器，請稍後再試'); }
+}
+(async function loadLeave(){
+  try{
+    const r=await fetch(API+'/api/leave'); const j=await r.json();
+    const L={}; for(const pid of Object.keys(j.leave||{})) L[pid]={personId:pid,dates:j.leave[pid]};
+    S.leave=L; render();
+  }catch(e){}
+})();
+
+})();
+</script>
