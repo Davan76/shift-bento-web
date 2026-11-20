@@ -1,4 +1,4 @@
-<title>輪班便當 v1.96</title>
+<title>輪班便當 v1.97</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap">
 <style>
@@ -406,7 +406,7 @@ function topHtml(){
   const chips=[]; chips.push(S.demo?'<span class="chip warn">範例資料・不會儲存</span>':'<span class="chip on">已連線資料庫</span>');
   chips.push(S.canEdit?'<span class="chip on">編輯者</span>':'<span class="chip">組員</span>');
   if(meName()) chips.push('<button class="chip" data-act="logout">我是 '+esc(meName())+'（換人）</button>');
-  return `<header class="top"><div class="brand"><h1>輪班便當</h1><span class="tag">網頁版 v1.96</span></div>
+  return `<header class="top"><div class="brand"><h1>輪班便當</h1><span class="tag">網頁版 v1.97</span></div>
   <div class="mnav"><button class="ib" data-act="prev" aria-label="上一個月" ${i<=0?'disabled':''}>‹</button>
   <strong>${mo?monthLabel(mo):'—'}<small>${mo?mo.y+'/'+p2(mo.m):''}</small></strong>
   <button class="ib" data-act="next" aria-label="下一個月" ${i<0||i>=list.length-1?'disabled':''}>›</button></div>
@@ -484,13 +484,14 @@ function restCompareHtml(mo){
   const rot=mo.people.filter(p=>p.cat!=='日1'); let nBad=0;   // 除日班 B01（基準）以外的全部人員
   const rows=rot.map(p=>{
     const t=tot(mo.rows[p.id]), d=t-b0, ok=d===0; if(!ok) nBad++;
-    return `<tr class="${ok?'ok':'bad'}"><th>${esc(p.name)}</th><td>${esc(GNAME[p.cat].replace(/（.*）/,''))}${p.tail?'（表尾）':''}</td><td>${t}</td><td>${ok?'✓ 一致':'✗ '+(d>0?'多 '+d:'少 '+(-d))+' 天'}</td></tr>`;
+    if(ok) return '';   // 一致的人不逐個列出，只列不一致的
+    return `<tr class="bad"><th>${esc(p.name)}</th><td>${esc(GNAME[p.cat].replace(/（.*）/,''))}${p.tail?'（表尾）':''}</td><td>${t}</td><td>✗ ${d>0?'多 '+d:'少 '+(-d)}天</td></tr>`;
   }).join('');
   const sum=rot.length?`比對 ${rot.length} 人（日班 B01 除外）：休息天數與基準一致 ${rot.length-nBad} 人、不一致 ${nBad} 人`:'本月沒有需要比對的人員';
   return `<section class="issues rc"><h2>休息天數比對（以日班 B01 為基準）</h2>
   <p class="rcbase">日班 B01：本月休 <b>${b0}</b> 天${baseDiff.length?'<span class="bad">；注意：日班 B01 之間的休息天數本身不一致（'+baseDiff.length+' 人）</span>':''}</p>
   <p class="rcsum ${nBad?'bad':'ok'}">${esc(sum)}</p>
-  ${rot.length?`<div class="wrap"><table class="rct"><thead><tr><th>姓名</th><th>組別</th><th>休</th><th>與基準</th></tr></thead><tbody>${rows}</tbody></table></div>`:''}
+  ${nBad?`<div class="wrap"><table class="rct"><thead><tr><th>姓名</th><th>組別</th><th>休</th><th>與基準</th></tr></thead><tbody>${rows}</tbody></table></div>`:''}
   </section>`;
 }
 
