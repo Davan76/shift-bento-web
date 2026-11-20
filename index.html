@@ -1,4 +1,4 @@
-<title>輪班便當 v1.97</title>
+<title>輪班便當 v1.98</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap">
 <style>
@@ -135,19 +135,11 @@ thead th.lvh span{color:#1a1400!important;font-weight:700!important}
 tr.me th.nm button{font-weight:800;text-decoration:underline}
 tr.me td.c{box-shadow:inset 0 1px 0 var(--fg),inset 0 -1px 0 var(--fg)}
 
-/* 休息天數比對：不一致用淡紅底、白字（#cc4a4a 與白字對比度 4.5，兼顧「淡」與可讀） */
-.rc .rcbase{margin:0 0 4px;font-size:13px}
-.rc .rcsum{margin:0 0 8px;font-size:13px;font-weight:700;display:inline-block;padding:2px 0}
-.rc .rcsum.ok{color:var(--ok)}
-.rc .rcsum.bad,.rc .rcbase .bad{background:#cc4a4a;color:#fff;padding:3px 10px;border-radius:6px;font-weight:700}
-.rc .wrap{max-height:none}
-.rct{border-collapse:collapse;font-size:13px;width:auto;min-width:360px}
-.rct th,.rct td{padding:3px 10px;text-align:center;border-bottom:1px solid var(--line);white-space:nowrap}
-.rct thead th{font-weight:700;color:var(--muted,inherit)}
-.rct tbody th{text-align:left;font-weight:500;position:static;background:none}
-.rct tr.bad th,.rct tr.bad td{background:#cc4a4a;color:#fff}
-.rct tr.bad td:last-child{font-weight:700}
-.rct tr.ok td:last-child{color:var(--ok)}
+/* 最後一欄「休」：本月休息天數；與日班 B01 不同的用淡紅底、白字（#cc4a4a 與白字對比度 4.5） */
+th.rd,td.rd{min-width:46px;text-align:center;white-space:nowrap;border-left:2px solid var(--line-strong,var(--line))}
+th.rd span{display:block;font-size:10px;font-weight:400;opacity:.8}
+td.rd{font-weight:700}
+td.rd.rdbad{background:#cc4a4a;color:#fff}
 
 body{display:flex;align-items:center;justify-content:center;min-height:100vh;}
 </style>
